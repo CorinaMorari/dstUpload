@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory
 from pyembroidery import read, write_svg
-from flask_cors import CORS  # Import CORS
+from flask_cors import CORS
 import os
+import xml.etree.ElementTree as ET  # Importing xml.etree for XML parsing
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -29,12 +30,12 @@ def parse_dst(file_path):
     stitches = []
     threads = []
 
-    # Extract stitch data
+    # Extract stitch data from DST
     for stitch in pattern.stitches:
         x, y, command = stitch[0], stitch[1], stitch[2]
         stitches.append({"x": x, "y": y, "command": command})
 
-    # Extract thread colors
+    # Extract thread colors from DST
     if pattern.threadlist:
         for thread in pattern.threadlist:
             threads.append({
@@ -49,7 +50,34 @@ def parse_dst(file_path):
     svg_file_path = os.path.join(app.config['SVG_FOLDER'], os.path.basename(file_path) + '.svg')
     write_svg(pattern, svg_file_path)
 
-    return {"stitches": stitches, "threads": threads, "svg_file_path": svg_file_path}
+    # Parse the SVG file for stitches and threads
+    svg_data = parse_svg(svg_file_path)
+
+    return {"stitches": stitches, "threads": threads, "svg_file_path": svg_file_path, "svg_data": svg_data}
+
+# Function to parse SVG and extract stitches and threads
+def parse_svg(svg_file_path):
+    # Parse the SVG file
+    tree = ET.parse(svg_file_path)
+    root = tree.getroot()
+
+    # Extract stitches (in this case, paths or lines in the SVG)
+    stitches = []
+    for path in root.findall('.//{http://www.w3.org/2000/svg}path'):
+        d = path.attrib.get('d', '')
+        stitches.append({"path": d})
+
+    # Extract thread colors (using the `stroke` attribute for color)
+    threads = []
+    for path in root.findall('.//{http://www.w3.org/2000/svg}path'):
+        stroke_color = path.attrib.get('stroke', None)
+        if stroke_color:
+            threads.append(stroke_color)
+
+    # Remove duplicates (if multiple stitches have the same color)
+    threads = list(set(threads))
+
+    return {"stitches": stitches, "threads": threads}
 
 # Route to handle DST file upload
 @app.route('/upload-dst', methods=['POST'])

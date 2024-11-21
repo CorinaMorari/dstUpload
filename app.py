@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from pyembroidery import read, write_svg
+from pyembroidery import read, write_svg, EmbThread
 from flask_cors import CORS  # Import CORS
 import os
 
@@ -23,13 +23,13 @@ os.makedirs(SVG_FOLDER, exist_ok=True)
 # Configure SVG folder
 app.config['SVG_FOLDER'] = SVG_FOLDER
 
-# Define default threads if empty (set specific colors as needed)
+# Default threads (as EmbThread objects)
 DEFAULT_THREADS = [
-    {"r": 0, "g": 0, "b": 0},  # Black
-    {"r": 255, "g": 255, "b": 255},  # White
-    {"r": 255, "g": 0, "b": 0},  # Red
-    {"r": 0, "g": 255, "b": 0},  # Green
-    {"r": 0, "g": 0, "b": 255},  # Blue
+    EmbThread(color=(0, 0, 0)),  # Black
+    EmbThread(color=(255, 255, 255)),  # White
+    EmbThread(color=(255, 0, 0)),  # Red
+    EmbThread(color=(0, 255, 0)),  # Green
+    EmbThread(color=(0, 0, 255)),  # Blue
 ]
 
 # Function to parse DST file and generate SVG
@@ -43,18 +43,18 @@ def parse_dst(file_path):
         stitches.append({"x": x, "y": y, "command": command})
 
     # Check if threadlist is empty and set default threads if necessary
-    if not pattern.threads:
+    if not pattern.threadlist:
         print("No threads found, setting default threads.")
-        # Assign the default threads to the pattern's threads
-        pattern.threads = DEFAULT_THREADS
-
-    # Return the updated pattern, stitches, and thread data
-    svg_file_path = os.path.join(app.config['SVG_FOLDER'], os.path.basename(file_path) + '.svg')
+        pattern.threadlist = DEFAULT_THREADS
 
     # Generate the SVG file with .svg extension, using the threads set above
+    svg_file_path = os.path.join(app.config['SVG_FOLDER'], os.path.basename(file_path) + '.svg')
     write_svg(pattern, svg_file_path)
 
-    return {"stitches": stitches, "threads": pattern.threads, "svg_file_path": svg_file_path}
+    # Extract thread color data for response
+    threads = [{"r": t.color.red, "g": t.color.green, "b": t.color.blue} for t in pattern.threadlist]
+
+    return {"stitches": stitches, "threads": threads, "svg_file_path": svg_file_path}
 
 # Route to handle DST file upload
 @app.route('/upload-dst', methods=['POST'])

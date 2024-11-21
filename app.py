@@ -69,11 +69,15 @@ def upload_dst():
         # Parse the DST file and generate SVG
         parsed_data = parse_dst(file_path)
 
-        # Return the parsed data and the SVG file path
+        # Full URL to access the SVG
+        base_url = 'https://yourdomain.com'  # Replace with your actual domain
+        svg_url = f'{base_url}/download-svg/{os.path.basename(parsed_data["svg_file_path"])}'
+
+        # Return the parsed data and the SVG file URL
         return jsonify({
             "stitches": parsed_data["stitches"],
             "threads": parsed_data["threads"],
-            "svg_file_url": f'/download-svg/{os.path.basename(parsed_data["svg_file_path"])}'
+            "svg_file_url": svg_url
         })
     else:
         return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400

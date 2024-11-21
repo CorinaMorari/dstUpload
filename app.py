@@ -33,24 +33,25 @@ def parse_dst(file_path):
         x, y, command = stitch[0], stitch[1], stitch[2]
         stitches.append({"x": x, "y": y, "command": command})
 
-    color_change_count = sum(1 for stitch in pattern.stitches if stitch[2] == 1)  # Command 1 indicates color change
+    # Count the color change commands (command 1 indicates a color change)
+    color_change_count = sum(1 for stitch in pattern.stitches if stitch[2] == 1)
 
-    # Assign default threads if none are provided
+    # Assign default threads if none are provided in the pattern
     if not pattern.threadlist:
-        pattern.threadlist = DEFAULT_THREADS[:max(1, color_change_count)]
+        pattern.threadlist = DEFAULT_THREADS[:max(1, color_change_count)]  # Use enough default threads based on color changes
 
-    # Extract threads
+    # Extract thread colors from the pattern
     threads = []
     for thread in pattern.threadlist:
-        # Check how colors are stored in EmbThread
+        # Check if the thread is an EmbThread object
         try:
-            # Try accessing as attributes
+            # Attempt to access the attributes of EmbThread
             threads.append({"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()})
         except AttributeError:
-            # If the attributes or methods are not found, assume it's stored differently
-            threads.append({"r": thread[0], "g": thread[1], "b": thread[2]})  # Access as a tuple
+            # If the attributes are not found, access as a tuple (default behavior)
+            threads.append({"r": thread[0], "g": thread[1], "b": thread[2]})
 
-    # Generate the SVG file
+    # Generate the SVG file with the pattern's thread colors
     svg_file_path = os.path.join(app.config['SVG_FOLDER'], os.path.basename(file_path) + '.svg')
     write_svg(pattern, svg_file_path)
 

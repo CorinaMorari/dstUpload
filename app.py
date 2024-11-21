@@ -45,7 +45,7 @@ def parse_dst(file_path):
     else:
         threads.append({"error": "No thread information available in this file."})
 
-    # Generate the SVG file
+    # Generate the SVG file with .svg extension
     svg_file_path = os.path.join(app.config['SVG_FOLDER'], os.path.basename(file_path) + '.svg')
     write_svg(pattern, svg_file_path)
 
@@ -70,7 +70,7 @@ def upload_dst():
         parsed_data = parse_dst(file_path)
 
         # Full URL to access the SVG
-        base_url = 'https://yourdomain.com'  # Replace with your actual domain
+        base_url = 'https://dstupload.onrender.com'  # Your actual domain
         svg_url = f'{base_url}/download-svg/{os.path.basename(parsed_data["svg_file_path"])}'
 
         # Return the parsed data and the SVG file URL

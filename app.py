@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from pyembroidery import read, write_svg, EmbThread
-from flask_cors import CORS  # Import CORS
+from flask_cors import CORS
 import os
 
 # Initialize Flask app
@@ -9,27 +9,22 @@ app = Flask(__name__)
 # Enable CORS
 CORS(app)
 
-# Create an uploads directory if it doesn't exist
+# Create necessary folders
 UPLOAD_FOLDER = './uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Configure upload folder
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# SVG output folder
 SVG_FOLDER = './svgs'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SVG_FOLDER, exist_ok=True)
 
-# Configure SVG folder
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SVG_FOLDER'] = SVG_FOLDER
 
 # Default threads (as EmbThread objects)
 DEFAULT_THREADS = [
-    EmbThread(color=(0, 0, 0)),  # Black
-    EmbThread(color=(255, 255, 255)),  # White
-    EmbThread(color=(255, 0, 0)),  # Red
-    EmbThread(color=(0, 255, 0)),  # Green
-    EmbThread(color=(0, 0, 255)),  # Blue
+    EmbThread(0, 0, 0),  # Black
+    EmbThread(255, 255, 255),  # White
+    EmbThread(255, 0, 0),  # Red
+    EmbThread(0, 255, 0),  # Green
+    EmbThread(0, 0, 255),  # Blue
 ]
 
 # Function to parse DST file and generate SVG
@@ -42,46 +37,43 @@ def parse_dst(file_path):
         x, y, command = stitch[0], stitch[1], stitch[2]
         stitches.append({"x": x, "y": y, "command": command})
 
-    # Check if threadlist is empty and set default threads if necessary
-    if not pattern.threadlist:
-        print("No threads found, setting default threads.")
-        pattern.threadlist = DEFAULT_THREADS
+    # Count color changes in the pattern
+    color_change_count = sum(1 for stitch in pattern.stitches if stitch[2] == 1)  # Command 1 indicates color change
 
-    # Generate the SVG file with .svg extension, using the threads set above
+    # Assign only as many colors as needed
+    if not pattern.threadlist:
+        print(f"No threads found. Assigning {color_change_count} default colors.")
+        pattern.threadlist = DEFAULT_THREADS[:max(1, color_change_count)]
+
+    # Generate the SVG file
     svg_file_path = os.path.join(app.config['SVG_FOLDER'], os.path.basename(file_path) + '.svg')
     write_svg(pattern, svg_file_path)
 
     # Extract thread color data for response
-    threads = [{"r": t.color.red, "g": t.color.green, "b": t.color.blue} for t in pattern.threadlist]
+    threads = [{"r": t.red, "g": t.green, "b": t.blue} for t in pattern.threadlist]
 
     return {"stitches": stitches, "threads": threads, "svg_file_path": svg_file_path}
 
 # Route to handle DST file upload
 @app.route('/upload-dst', methods=['POST'])
 def upload_dst():
-    # Check if the file is included in the request
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files['file']
 
-    # Validate the file extension
     if file.filename.lower().endswith('.dst'):
-        # Process the DST file
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-        file.save(file_path)  # Save the file
+        file.save(file_path)
 
-        # Parse the DST file and generate SVG
         try:
             parsed_data = parse_dst(file_path)
         except Exception as e:
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
 
-        # Full URL to access the SVG
         base_url = 'https://dstupload.onrender.com'  # Your actual domain
         svg_url = f'{base_url}/download-svg/{os.path.basename(parsed_data["svg_file_path"])}'
 
-        # Return the parsed data and the SVG file URL
         return jsonify({
             "stitches": parsed_data["stitches"],
             "threads": parsed_data["threads"],

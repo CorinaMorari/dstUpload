@@ -34,21 +34,21 @@ def parse_dst(file_path):
         stitches.append({"x": x, "y": y, "command": command})
 
     # Count the color change commands (command 1 indicates a color change)
-    color_change_count = sum(1 for stitch in pattern.stitches if stitch[2] == 1)
+    color_change_count = max(1, sum(1 for stitch in pattern.stitches if stitch[2] == 1))
 
     # Assign default threads if none are provided in the pattern
     if not pattern.threadlist:
-        pattern.threadlist = DEFAULT_THREADS[:max(1, color_change_count)]  # Use enough default threads based on color changes
+        # Use enough default threads based on color changes, limited by available defaults
+        pattern.threadlist = DEFAULT_THREADS[:min(len(DEFAULT_THREADS), color_change_count)]
 
     # Extract thread colors from the pattern
     threads = []
     for thread in pattern.threadlist:
-        # Check if the thread is an EmbThread object
         try:
-            # Attempt to access the attributes of EmbThread
+            # Extract color from EmbThread object
             threads.append({"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()})
         except AttributeError:
-            # If the attributes are not found, access as a tuple (default behavior)
+            # Fallback for non-standard thread representations
             threads.append({"r": thread[0], "g": thread[1], "b": thread[2]})
 
     # Generate the SVG file with the pattern's thread colors

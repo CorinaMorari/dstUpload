@@ -34,9 +34,9 @@ def parse_dst(file_path):
         x, y, command = stitch[0], stitch[1], stitch[2]
         stitches.append({"x": x, "y": y, "command": command})
 
-   # Extract thread colors without formatting
-if pattern.threadlist:
-    threads = pattern.threadlist  # Simply assign threadlist without processing it
+    # Extract thread colors without formatting
+    if pattern.threadlist:
+        threads = pattern.threadlist  # Simply assign threadlist without processing it
 
     # Generate the SVG file with .svg extension
     svg_file_path = os.path.join(app.config['SVG_FOLDER'], os.path.basename(file_path) + '.svg')
@@ -60,7 +60,10 @@ def upload_dst():
         file.save(file_path)  # Save the file
 
         # Parse the DST file and generate SVG
-        parsed_data = parse_dst(file_path)
+        try:
+            parsed_data = parse_dst(file_path)
+        except Exception as e:
+            return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
 
         # Full URL to access the SVG
         base_url = 'https://dstupload.onrender.com'  # Your actual domain

@@ -3,6 +3,7 @@ from pyembroidery import read, write_svg
 from flask_cors import CORS
 import os
 import xml.etree.ElementTree as ET  # Importing xml.etree for XML parsing
+from some_library import convert_dst_to_jef  # Replace with actual DST-to-JEF conversion library
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -17,6 +18,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Configure upload folder
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# JEF output folder
+JEF_FOLDER = './jefs'
+os.makedirs(JEF_FOLDER, exist_ok=True)
+
+# Configure JEF folder
+app.config['JEF_FOLDER'] = JEF_FOLDER
+
 # SVG output folder
 SVG_FOLDER = './svgs'
 os.makedirs(SVG_FOLDER, exist_ok=True)
@@ -24,18 +32,19 @@ os.makedirs(SVG_FOLDER, exist_ok=True)
 # Configure SVG folder
 app.config['SVG_FOLDER'] = SVG_FOLDER
 
-# Function to parse DST file and generate SVG
-def parse_dst(file_path):
+# Function to parse JEF file and generate SVG
+def parse_jef(file_path):
+    # Convert JEF file to SVG
     pattern = read(file_path)
     stitches = []
     threads = []
 
-    # Extract stitch data from DST
+    # Extract stitch data from JEF
     for stitch in pattern.stitches:
         x, y, command = stitch[0], stitch[1], stitch[2]
         stitches.append({"x": x, "y": y, "command": command})
 
-    # Extract thread colors from DST
+    # Extract thread colors from JEF
     if pattern.threadlist:
         for thread in pattern.threadlist:
             threads.append({
@@ -90,12 +99,16 @@ def upload_dst():
 
     # Validate the file extension
     if file.filename.lower().endswith('.dst'):
-        # Process the DST file
+        # Save the uploaded DST file
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(file_path)  # Save the file
 
-        # Parse the DST file and generate SVG
-        parsed_data = parse_dst(file_path)
+        # Convert DST to JEF
+        jef_file_path = os.path.join(app.config['JEF_FOLDER'], os.path.basename(file.filename) + '.jef')
+        convert_dst_to_jef(file_path, jef_file_path)  # Convert DST to JEF using the conversion method
+
+        # Parse the JEF file and generate SVG
+        parsed_data = parse_jef(jef_file_path)
 
         # Full URL to access the SVG
         base_url = 'https://dstupload.onrender.com'  # Your actual domain

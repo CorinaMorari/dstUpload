@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from pyembroidery import read
+from pyembroidery import read, write_svg
 from flask_cors import CORS  # Import CORS
 import os
 
@@ -23,7 +23,7 @@ os.makedirs(SVG_FOLDER, exist_ok=True)
 # Configure SVG folder
 app.config['SVG_FOLDER'] = SVG_FOLDER
 
-# Function to parse DST file and convert to SVG
+# Function to parse DST file and generate SVG
 def parse_dst(file_path):
     pattern = read(file_path)
     stitches = []
@@ -45,11 +45,9 @@ def parse_dst(file_path):
     else:
         threads.append({"error": "No thread information available in this file."})
 
-    # Convert to SVG and save
-    svg_content = pattern.to_svg()
+    # Generate the SVG file
     svg_file_path = os.path.join(app.config['SVG_FOLDER'], os.path.basename(file_path) + '.svg')
-    with open(svg_file_path, 'w') as svg_file:
-        svg_file.write(svg_content)
+    write_svg(pattern, svg_file_path)
 
     return {"stitches": stitches, "threads": threads, "svg_file_path": svg_file_path}
 

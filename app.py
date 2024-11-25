@@ -112,41 +112,38 @@ def upload_dst():
 @app.route('/change-png-colors', methods=['POST'])
 def change_png_colors():
     """Change colors in an existing PNG file."""
-    # Get JSON data from the request
-    data = request.get_json()
-
-    # Check if 'png_url' and 'color_changes' are provided
-    if not data or 'png_url' not in data or 'color_changes' not in data:
-        return jsonify({"error": "Both 'png_url' and 'color_changes' are required."}), 400
-
-    png_url = data['png_url']
-    color_changes = data['color_changes']
-
-    # Ensure the color changes are provided in the correct format
-    if not isinstance(color_changes, dict):
-        return jsonify({"error": "'color_changes' should be a dictionary mapping old colors to new ones."}), 400
-
-    # Decode the URL path and extract the filename
-    png_url_path = urllib.parse.urlparse(png_url).path
-    png_filename = os.path.basename(png_url_path)
-    decoded_filename = urllib.parse.unquote(png_filename)
-
-    # Load the PNG image from the upload folder
-    png_path = os.path.join(app.config['UPLOAD_FOLDER'], decoded_filename)
-
-    # Check if the file exists
-    if not os.path.exists(png_path):
-        print(f"File path does not exist: {png_path}")  # Debugging log
-        return jsonify({"error": "PNG file not found."}), 404
-
     try:
-        # Open the PNG file using PIL
-        png_image = Image.open(png_path)
+        # Get JSON data from the request
+        data = request.get_json()
 
-        # Change the colors in the PNG
+        # Validate request payload
+        if not data or 'png_url' not in data or 'color_changes' not in data:
+            return jsonify({"error": "Both 'png_url' and 'color_changes' are required."}), 400
+
+        png_url = data['png_url']
+        color_changes = data['color_changes']
+
+        # Validate color_changes format
+        if not isinstance(color_changes, dict):
+            return jsonify({"error": "'color_changes' should be a dictionary mapping old colors to new ones."}), 400
+
+        # Decode the URL to get the filename
+        parsed_url = urllib.parse.urlparse(png_url)
+        png_filename = os.path.basename(parsed_url.path)
+        decoded_filename = urllib.parse.unquote(png_filename)
+
+        # Build the full path to the file
+        png_path = os.path.join(app.config['UPLOAD_FOLDER'], decoded_filename)
+
+        # Ensure file exists
+        if not os.path.exists(png_path):
+            return jsonify({"error": f"PNG file not found: {decoded_filename}"}), 404
+
+        # Open and modify the PNG
+        png_image = Image.open(png_path)
         modified_png_image = change_colors_in_png(png_image, color_changes)
 
-        # Save the modified image to a new file
+        # Save the modified image
         modified_png_path = os.path.join(app.config['UPLOAD_FOLDER'], 'modified_' + decoded_filename)
         modified_png_image.save(modified_png_path)
 
@@ -154,10 +151,11 @@ def change_png_colors():
         response = {
             "png_url": f"{BASE_URL}{os.path.basename(modified_png_path)}"
         }
-
         return jsonify(response), 200
 
     except Exception as e:
+        # Log the error for debugging
+        print(f"Error in change_png_colors: {e}")
         return jsonify({"error": f"Failed to modify PNG: {str(e)}"}), 500
 
 

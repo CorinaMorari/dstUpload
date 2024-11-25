@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 from pyembroidery import read, write_png
 from flask_cors import CORS
+from PIL import Image
 import os
 
 # Initialize Flask app
@@ -15,6 +16,20 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Configure upload folder
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Base URL for accessing files
+BASE_URL = "https://dstupload.onrender.com/uploads/"
+
+def extract_colors_from_png(png_path):
+    """Extract distinct colors from the generated PNG file."""
+    try:
+        image = Image.open(png_path)
+        image = image.convert("RGB")  # Ensure the image is in RGB mode
+        colors = image.getcolors(maxcolors=1000000)  # Extract all colors
+        distinct_colors = sorted(set(color[1] for color in colors if color[0] > 0))
+        return [{"red": r, "green": g, "blue": b} for r, g, b in distinct_colors]
+    except Exception as e:
+        return []
 
 # Route to handle DST file upload and PNG generation
 @app.route('/upload-dst', methods=['POST'])
@@ -37,23 +52,23 @@ def upload_dst():
             pattern = read(file_path)
             write_png(pattern, output_png_path)  # Use pyembroidery to create a PNG
 
-            # Retrieve thread colors
-            thread_colors = []
-            for thread in pattern.threadlist:
-                # Append the color as RGB tuple
-                thread_colors.append({
-                    "red": thread.color.red,
-                    "green": thread.color.green,
-                    "blue": thread.color.blue
-                })
+            # Extract colors from the PNG
+            colors = extract_colors_from_png(output_png_path)
 
-            return jsonify({
-                "png_path": output_png_path,
-                "colors": thread_colors
-            }), 200
+            # Retrieve stitches
+            stitches = [{"x": stitch[0], "y": stitch[1], "command": stitch[2]} for stitch in pattern.stitches]
+
+            # Construct response
+            response = {
+                "png_url": f"{BASE_URL}{os.path.basename(output_png_path)}",
+                "stitches": stitches,
+                "colors": colors
+            }
+
+            return jsonify(response), 200
 
         except Exception as e:
-            return jsonify({"error": f"Failed to generate PNG: {str(e)}"}), 500
+            return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
     else:
         return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
 

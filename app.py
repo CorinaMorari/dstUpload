@@ -3,6 +3,7 @@ from pyembroidery import read, write_png
 from flask_cors import CORS
 from PIL import Image
 import os
+import io
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -31,6 +32,27 @@ def extract_colors_from_png(png_path):
         return [{"red": r, "green": g, "blue": b} for r, g, b in distinct_colors]
     except Exception as e:
         return []
+
+def change_colors_in_png(png_image, color_changes):
+    """Change specific colors in the PNG image based on given color mappings."""
+    try:
+        img_data = png_image.load()  # Get pixel data
+
+        for old_color, new_color in color_changes.items():
+            # Convert colors to RGB tuples
+            old_rgb = tuple(old_color)
+            new_rgb = tuple(new_color)
+
+            # Loop through the pixels and replace the old color with the new color
+            for y in range(png_image.height):
+                for x in range(png_image.width):
+                    if img_data[x, y] == old_rgb:
+                        img_data[x, y] = new_rgb
+
+        return png_image
+
+    except Exception as e:
+        raise Exception(f"Error modifying PNG: {str(e)}")
 
 # Route to serve static files from uploads directory
 @app.route('/uploads/<path:filename>', methods=['GET'])
@@ -78,6 +100,54 @@ def upload_dst():
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
     else:
         return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
+
+
+# Route to change colors in an uploaded PNG
+@app.route('/change-png-colors', methods=['POST'])
+def change_png_colors():
+    """Change colors in an existing PNG file."""
+    # Get JSON data from the request
+    data = request.get_json()
+
+    # Check if 'png_url' and 'color_changes' are provided
+    if not data or 'png_url' not in data or 'color_changes' not in data:
+        return jsonify({"error": "Both 'png_url' and 'color_changes' are required."}), 400
+
+    png_url = data['png_url']
+    color_changes = data['color_changes']
+
+    # Ensure the color changes are provided in the correct format
+    if not isinstance(color_changes, dict):
+        return jsonify({"error": "'color_changes' should be a dictionary mapping old colors to new ones."}), 400
+
+    # Load the PNG image from the upload folder
+    png_filename = os.path.basename(png_url)
+    png_path = os.path.join(app.config['UPLOAD_FOLDER'], png_filename)
+
+    if not os.path.exists(png_path):
+        return jsonify({"error": "PNG file not found."}), 404
+
+    try:
+        # Open the PNG file using PIL
+        png_image = Image.open(png_path)
+
+        # Change the colors in the PNG
+        modified_png_image = change_colors_in_png(png_image, color_changes)
+
+        # Save the modified image to a new file
+        modified_png_path = os.path.join(app.config['UPLOAD_FOLDER'], 'modified_' + png_filename)
+        modified_png_image.save(modified_png_path)
+
+        # Return the URL of the modified PNG
+        response = {
+            "png_url": f"{BASE_URL}{os.path.basename(modified_png_path)}"
+        }
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to modify PNG: {str(e)}"}), 500
+
 
 # Start the Flask server
 if __name__ == "__main__":

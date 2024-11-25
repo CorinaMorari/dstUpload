@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from pyembroidery import read, write_png
 from flask_cors import CORS
 from PIL import Image
@@ -18,7 +18,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Base URL for accessing files
-BASE_URL = "https://dstupload.onrender.com/uploads/"
+BASE_URL = "http://localhost:8000/uploads/"  # Replace localhost with your server's domain or IP
 
 def extract_colors_from_png(png_path):
     """Extract distinct colors from the generated PNG file."""
@@ -30,6 +30,12 @@ def extract_colors_from_png(png_path):
         return [{"red": r, "green": g, "blue": b} for r, g, b in distinct_colors]
     except Exception as e:
         return []
+
+# Route to serve static files from uploads directory
+@app.route('/uploads/<path:filename>', methods=['GET'])
+def serve_uploaded_file(filename):
+    """Serve files from the uploads folder."""
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # Route to handle DST file upload and PNG generation
 @app.route('/upload-dst', methods=['POST'])

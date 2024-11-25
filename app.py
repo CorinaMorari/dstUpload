@@ -3,7 +3,6 @@ from pyembroidery import read, write_png
 from flask_cors import CORS
 from PIL import Image
 import os
-import io
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -28,10 +27,14 @@ def extract_colors_from_png(png_path):
         image = Image.open(png_path)
         image = image.convert("RGB")  # Ensure the image is in RGB mode
         colors = image.getcolors(maxcolors=1000000)  # Extract all colors
+        if not colors:
+            return []
+
         distinct_colors = sorted(set(color[1] for color in colors if color[0] > 0))
         return [{"red": r, "green": g, "blue": b} for r, g, b in distinct_colors]
     except Exception as e:
-        return []
+        return {"error": f"Failed to extract colors: {str(e)}"}
+
 
 def change_colors_in_png(png_image, color_changes):
     """Change specific colors in the PNG image based on given color mappings."""
@@ -54,11 +57,13 @@ def change_colors_in_png(png_image, color_changes):
     except Exception as e:
         raise Exception(f"Error modifying PNG: {str(e)}")
 
+
 # Route to serve static files from uploads directory
 @app.route('/uploads/<path:filename>', methods=['GET'])
 def serve_uploaded_file(filename):
     """Serve files from the uploads folder."""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 
 # Route to handle DST file upload and PNG generation
 @app.route('/upload-dst', methods=['POST'])

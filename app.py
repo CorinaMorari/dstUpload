@@ -37,20 +37,21 @@ def extract_colors_from_png(png_path):
         return {"error": f"Failed to extract colors: {str(e)}"}
 
 
-def change_colors_in_png(png_image, color_changes):
+def change_colors_in_png(png_image, color_changes, tolerance=10):
     """Change specific colors in the PNG image based on given color mappings."""
     try:
         img_data = png_image.load()  # Get pixel data
 
         for old_color, new_color in color_changes.items():
             # Convert colors to RGB tuples
-            old_rgb = tuple(old_color)
-            new_rgb = tuple(new_color)
+            old_rgb = tuple(map(int, old_color.split(',')))
+            new_rgb = tuple(map(int, new_color.split(',')))
 
             # Loop through the pixels and replace the old color with the new color
             for y in range(png_image.height):
                 for x in range(png_image.width):
-                    if img_data[x, y] == old_rgb:
+                    pixel = img_data[x, y]
+                    if all(abs(pixel[i] - old_rgb[i]) <= tolerance for i in range(3)):  # Check within tolerance
                         img_data[x, y] = new_rgb
 
         return png_image

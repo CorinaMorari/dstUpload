@@ -3,6 +3,7 @@ from pyembroidery import read, write_png
 from flask_cors import CORS
 from PIL import Image
 import os
+import urllib.parse
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -125,11 +126,17 @@ def change_png_colors():
     if not isinstance(color_changes, dict):
         return jsonify({"error": "'color_changes' should be a dictionary mapping old colors to new ones."}), 400
 
-    # Load the PNG image from the upload folder
-    png_filename = os.path.basename(png_url)
-    png_path = os.path.join(app.config['UPLOAD_FOLDER'], png_filename)
+    # Decode the URL path and extract the filename
+    png_url_path = urllib.parse.urlparse(png_url).path
+    png_filename = os.path.basename(png_url_path)
+    decoded_filename = urllib.parse.unquote(png_filename)
 
+    # Load the PNG image from the upload folder
+    png_path = os.path.join(app.config['UPLOAD_FOLDER'], decoded_filename)
+
+    # Check if the file exists
     if not os.path.exists(png_path):
+        print(f"File path does not exist: {png_path}")  # Debugging log
         return jsonify({"error": "PNG file not found."}), 404
 
     try:
@@ -140,7 +147,7 @@ def change_png_colors():
         modified_png_image = change_colors_in_png(png_image, color_changes)
 
         # Save the modified image to a new file
-        modified_png_path = os.path.join(app.config['UPLOAD_FOLDER'], 'modified_' + png_filename)
+        modified_png_path = os.path.join(app.config['UPLOAD_FOLDER'], 'modified_' + decoded_filename)
         modified_png_image.save(modified_png_path)
 
         # Return the URL of the modified PNG

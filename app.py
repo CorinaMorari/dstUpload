@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from pyembroidery import read, write_svg, EmbThread
+from pyembroidery import read, write_png, EmbThread
 from flask_cors import CORS
 import os
 
@@ -8,12 +8,12 @@ app = Flask(__name__)
 CORS(app)
 
 UPLOAD_FOLDER = './uploads'
-SVG_FOLDER = './svgs'
+PNG_FOLDER = './pngs'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(SVG_FOLDER, exist_ok=True)
+os.makedirs(PNG_FOLDER, exist_ok=True)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['SVG_FOLDER'] = SVG_FOLDER
+app.config['PNG_FOLDER'] = PNG_FOLDER
 
 # Default threads
 DEFAULT_THREADS = [
@@ -24,7 +24,7 @@ DEFAULT_THREADS = [
     EmbThread(0, 0, 255),  # Blue
 ]
 
-# Function to parse DST file and generate SVG
+# Function to parse DST file and generate PNG
 def parse_dst(file_path):
     pattern = read(file_path)
     stitches = []
@@ -51,11 +51,11 @@ def parse_dst(file_path):
             # Fallback for non-standard thread representations
             threads.append({"r": thread[0], "g": thread[1], "b": thread[2]})
 
-    # Generate the SVG file with the pattern's thread colors
-    svg_file_path = os.path.join(app.config['SVG_FOLDER'], os.path.basename(file_path) + '.svg')
-    write_svg(pattern, svg_file_path)
+    # Generate the PNG file
+    png_file_path = os.path.join(app.config['PNG_FOLDER'], os.path.basename(file_path) + '.png')
+    write_png(pattern, png_file_path)
 
-    return {"stitches": stitches, "threads": threads, "svg_file_path": svg_file_path}
+    return {"stitches": stitches, "threads": threads, "png_file_path": png_file_path}
 
 # Route to handle DST file upload
 @app.route('/upload-dst', methods=['POST'])
@@ -75,19 +75,19 @@ def upload_dst():
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
 
         base_url = 'https://dstupload.onrender.com'  # Replace with your actual domain
-        svg_url = f'{base_url}/download-svg/{os.path.basename(parsed_data["svg_file_path"])}'
+        png_url = f'{base_url}/download-png/{os.path.basename(parsed_data["png_file_path"])}'
 
         return jsonify({
             "stitches": parsed_data["stitches"],
             "threads": parsed_data["threads"],
-            "svg_file_url": svg_url
+            "png_file_url": png_url
         })
     else:
         return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
 
-@app.route('/download-svg/<filename>', methods=['GET'])
-def download_svg(filename):
-    return send_from_directory(app.config['SVG_FOLDER'], filename)
+@app.route('/download-png/<filename>', methods=['GET'])
+def download_png(filename):
+    return send_from_directory(app.config['PNG_FOLDER'], filename)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8000)

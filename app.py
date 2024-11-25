@@ -18,7 +18,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Base URL for accessing files
-BASE_URL = "http://localhost:8000/uploads/"  # Replace localhost with your server's domain or IP
+BASE_URL = "https://dstupload.onrender.com/uploads/"  # Updated domain
+
 
 def extract_colors_from_png(png_path):
     """Extract distinct colors from the generated PNG file."""

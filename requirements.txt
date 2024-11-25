@@ -2,4 +2,4 @@ flask
 flask-cors
 pyembroidery
 gunicorn
-PIL
+Pillow

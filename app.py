@@ -118,6 +118,10 @@ def upload_dst():
             # Parse the PES file to extract stitches, threads, and generate PNG
             parsed_data = parse_pes(pes_file_path)
 
+            # Generate the URL for the PES file
+            base_url = 'https://dstupload.onrender.com'
+            pes_file_url = f'{base_url}/uploads/{urllib.parse.quote(os.path.basename(pes_file_path))}'
+
         except Exception as e:
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
 
@@ -125,7 +129,8 @@ def upload_dst():
             "stitches": parsed_data["stitches"],
             "threads": parsed_data["threads"],
             "used_colors_hex": parsed_data["hex_colors"],
-            "png_file_url": parsed_data["png_file_url"]
+            "png_file_url": parsed_data["png_file_url"],
+            "pes_file_url": pes_file_url  # Include PES file URL in the response
         })
     else:
         return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400

@@ -30,7 +30,8 @@ DEFAULT_THREADS = [
 # Function to convert DST to PES
 def convert_dst_to_pes(dst_file_path):
     pattern = read(dst_file_path)
-    pes_file_path = os.path.splitext(dst_file_path)[0] + '.pes'
+    pes_file_name = os.path.basename(os.path.splitext(dst_file_path)[0] + '.pes')
+    pes_file_path = os.path.join(app.config['UPLOAD_FOLDER'], pes_file_name)  # Save in UPLOAD_FOLDER
     write_pes(pattern, pes_file_path)
     return pes_file_path
 
@@ -171,10 +172,21 @@ def modify_png_color_api():
     except Exception as e:
         return jsonify({"error": f"Failed to modify PNG color: {str(e)}"}), 500
 
-# Route to serve the generated PNG file
+# Route to serve uploaded files (PES or PNG)
 @app.route('/uploads/<filename>', methods=['GET'])
-def download_png(filename):
-    return send_from_directory(app.config['PNG_FOLDER'], filename)
+def download_file(filename):
+    # First check the UPLOAD_FOLDER for PES files
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    
+    # If not found in UPLOAD_FOLDER, check the PNG_FOLDER for PNG files
+    file_path = os.path.join(app.config['PNG_FOLDER'], filename)
+    if os.path.exists(file_path):
+        return send_from_directory(app.config['PNG_FOLDER'], filename)
+    
+    # File not found
+    return jsonify({"error": "File not found"}), 404
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8000)

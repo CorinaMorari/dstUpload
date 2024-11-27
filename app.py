@@ -27,12 +27,14 @@ DEFAULT_THREADS = [
     EmbThread(0, 0, 255),  # Blue
 ]
 
+
 # Function to convert DST to PES
 def convert_dst_to_pes(dst_file_path):
     pattern = read(dst_file_path)
     pes_file_path = os.path.splitext(dst_file_path)[0] + '.pes'
     write_pes(pattern, pes_file_path)
     return pes_file_path
+
 
 # Function to parse PES file, set thread colors, and generate PNG
 def parse_pes(file_path):
@@ -64,9 +66,11 @@ def parse_pes(file_path):
 
     return {"stitches": stitches, "threads": threads, "hex_colors": list(hex_colors), "png_file_url": png_url}
 
+
 # Function to convert RGB to HEX format
 def rgb_to_hex(rgb):
     return f'#{rgb["r"]:02x}{rgb["g"]:02x}{rgb["b"]:02x}'
+
 
 # Function to modify PNG color
 def modify_png_color(png_file_path, old_hex, new_hex):
@@ -94,10 +98,12 @@ def modify_png_color(png_file_path, old_hex, new_hex):
 
     return modified_png_path
 
+
 # Function to convert HEX to RGB
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+
 
 # Route to handle DST file upload and conversion to PES
 @app.route('/upload-dst', methods=['POST'])
@@ -135,6 +141,7 @@ def upload_dst():
     else:
         return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
 
+
 # Route to modify PNG color
 @app.route('/modify-png-color', methods=['POST'])
 def modify_png_color_api():
@@ -171,19 +178,29 @@ def modify_png_color_api():
     except Exception as e:
         return jsonify({"error": f"Failed to modify PNG color: {str(e)}"}), 500
 
+
 # Route to update PES thread colors
 @app.route('/update-pes-threads', methods=['POST'])
 def update_pes_threads():
-    # Get the PES file and hex colors from the request
+    # Check if a file is uploaded
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
-    
+
     file = request.files['file']
-    hex_colors = request.json.get('hex_colors')
+    hex_colors = request.form.get('hex_colors')
 
-    if not file or not hex_colors:
-        return jsonify({"error": "Missing required parameters"}), 400
+    if not hex_colors:
+        return jsonify({"error": "Missing 'hex_colors' parameter"}), 400
 
+    # Parse hex_colors into a list
+    try:
+        hex_colors = json.loads(hex_colors)  # Ensure hex_colors is a list
+        if not isinstance(hex_colors, list):
+            raise ValueError
+    except Exception:
+        return jsonify({"error": "Invalid 'hex_colors' format. It must be a JSON array of hex color strings."}), 400
+
+    # Validate the uploaded file
     if not file.filename.lower().endswith('.pes'):
         return jsonify({"error": "Invalid file format. Please upload a .pes file."}), 400
 
@@ -214,10 +231,12 @@ def update_pes_threads():
     except Exception as e:
         return jsonify({"error": f"Failed to process PES file: {str(e)}"}), 500
 
+
 # Route to serve the generated PNG file
 @app.route('/uploads/<filename>', methods=['GET'])
 def download_png(filename):
     return send_from_directory(app.config['PNG_FOLDER'], filename)
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8000)

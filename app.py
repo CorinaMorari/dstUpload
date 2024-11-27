@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from pyembroidery import read, write_png, EmbThread
+from pyembroidery import read, write_pes, write_png, EmbThread
 from flask_cors import CORS
 import os
 import urllib.parse
@@ -26,41 +26,31 @@ DEFAULT_THREADS = [
     EmbThread(0, 0, 255),  # Blue
 ]
 
-# Function to parse DST file, set thread colors, and generate PNG
-def parse_dst(file_path):
+# Function to convert DST to PES
+def convert_dst_to_pes(dst_file_path):
+    pattern = read(dst_file_path)
+    pes_file_path = os.path.splitext(dst_file_path)[0] + '.pes'
+    write_pes(pattern, pes_file_path)
+    return pes_file_path
+
+# Function to parse PES file, set thread colors, and generate PNG
+def parse_pes(file_path):
     pattern = read(file_path)
     stitches = []
 
-    # Track color changes
-    color_changes = []
-
+    # Extract stitch information
     for stitch in pattern.stitches:
         x, y, command = stitch[0], stitch[1], stitch[2]
         stitches.append({"x": x, "y": y, "command": command})
-        if command == 1:  # Color change command
-            color_changes.append(stitch[3])  # Save the color index at the color change
 
-    # Extract the threads used in the DST file (if no threads, use defaults)
-    if not pattern.threadlist:
-        pattern.threadlist = DEFAULT_THREADS[:len(color_changes)]  # Use as many defaults as needed
-
+    # Extract the threads used in the PES file
     threads = []
     hex_colors = set()
 
-    # Track all threads used in the pattern
-    for color_index in color_changes:
-        if color_index < len(pattern.threadlist):
-            thread = pattern.threadlist[color_index]
-            rgb = {"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()}
-            threads.append(rgb)
-            hex_colors.add(rgb_to_hex(rgb))  # Add the HEX value to the set
-
-    # Ensure that we have enough threads
     for thread in pattern.threadlist:
         rgb = {"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()}
-        if rgb not in threads:
-            threads.append(rgb)
-            hex_colors.add(rgb_to_hex(rgb))
+        threads.append(rgb)
+        hex_colors.add(rgb_to_hex(rgb))  # Add HEX value to the set
 
     # Generate the PNG file
     png_filename = os.path.basename(file_path) + '.png'
@@ -77,7 +67,7 @@ def parse_dst(file_path):
 def rgb_to_hex(rgb):
     return f'#{rgb["r"]:02x}{rgb["g"]:02x}{rgb["b"]:02x}'
 
-# Route to handle DST file upload
+# Route to handle DST file upload and conversion to PES
 @app.route('/upload-dst', methods=['POST'])
 def upload_dst():
     if 'file' not in request.files:
@@ -90,7 +80,12 @@ def upload_dst():
         file.save(file_path)
 
         try:
-            parsed_data = parse_dst(file_path)
+            # Convert DST to PES
+            pes_file_path = convert_dst_to_pes(file_path)
+
+            # Parse the PES file to extract stitches, threads, and generate PNG
+            parsed_data = parse_pes(pes_file_path)
+
         except Exception as e:
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
 

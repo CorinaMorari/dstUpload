@@ -192,13 +192,13 @@ def update_pes_threads():
     if not hex_colors:
         return jsonify({"error": "Missing 'hex_colors' parameter"}), 400
 
-    # Parse hex_colors into a list
+    # Convert hex_colors from string to list
     try:
-        hex_colors = json.loads(hex_colors)  # Ensure hex_colors is a list
-        if not isinstance(hex_colors, list):
+        hex_colors = eval(hex_colors)  # Convert string to list
+        if not isinstance(hex_colors, list) or not all(isinstance(color, str) for color in hex_colors):
             raise ValueError
     except Exception:
-        return jsonify({"error": "Invalid 'hex_colors' format. It must be a JSON array of hex color strings."}), 400
+        return jsonify({"error": "Invalid 'hex_colors' format. It must be a string representation of a list."}), 400
 
     # Validate the uploaded file
     if not file.filename.lower().endswith('.pes'):
@@ -230,7 +230,6 @@ def update_pes_threads():
         })
     except Exception as e:
         return jsonify({"error": f"Failed to process PES file: {str(e)}"}), 500
-
 
 # Route to serve the generated PNG file
 @app.route('/uploads/<filename>', methods=['GET'])

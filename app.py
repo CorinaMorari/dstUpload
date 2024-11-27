@@ -31,31 +31,34 @@ def parse_dst(file_path):
     pattern = read(file_path)
     stitches = []
 
-    # Extract stitch information
+    # Track color changes
+    color_changes = []
+
     for stitch in pattern.stitches:
         x, y, command = stitch[0], stitch[1], stitch[2]
         stitches.append({"x": x, "y": y, "command": command})
+        if command == 1:  # Color change command
+            color_changes.append(stitch[3])  # Save the color index at the color change
 
-    # Count the color change commands (command 1 indicates a color change)
-    color_change_count = max(1, sum(1 for stitch in pattern.stitches if stitch[2] == 1))
-
-    # Assign default threads if none are provided in the pattern
+    # Extract the threads used in the DST file (if no threads, use defaults)
     if not pattern.threadlist:
-        # Use enough default threads based on color changes, limited by available defaults
-        pattern.threadlist = DEFAULT_THREADS[:min(len(DEFAULT_THREADS), color_change_count)]
+        pattern.threadlist = DEFAULT_THREADS[:len(color_changes)]  # Use as many defaults as needed
 
-    # Extract thread colors from the pattern (as RGB)
     threads = []
-    hex_colors = set()  # Use a set to avoid duplicates
-    for thread in pattern.threadlist:
-        try:
-            # Extract color from EmbThread object
+    hex_colors = set()
+
+    # Track all threads used in the pattern
+    for color_index in color_changes:
+        if color_index < len(pattern.threadlist):
+            thread = pattern.threadlist[color_index]
             rgb = {"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()}
             threads.append(rgb)
-            hex_colors.add(rgb_to_hex(rgb))  # Convert RGB to HEX and add to set
-        except AttributeError:
-            # Fallback for non-standard thread representations (tuple-based)
-            rgb = {"r": thread[0], "g": thread[1], "b": thread[2]}
+            hex_colors.add(rgb_to_hex(rgb))  # Add the HEX value to the set
+
+    # Ensure that we have enough threads
+    for thread in pattern.threadlist:
+        rgb = {"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()}
+        if rgb not in threads:
             threads.append(rgb)
             hex_colors.add(rgb_to_hex(rgb))
 

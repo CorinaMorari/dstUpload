@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from pyembroidery import read, write_pes, write_png, EmbThread
+from pyembroidery import read, write_pes, write_png, EmbThread, EmbPattern
 from flask_cors import CORS
 from PIL import Image
 import os
@@ -26,6 +26,15 @@ DEFAULT_THREADS = [
     EmbThread(0, 255, 0),  # Green
     EmbThread(0, 0, 255),  # Blue
 ]
+
+# Function to convert RGB to HEX format
+def rgb_to_hex(rgb):
+    return f'#{rgb["r"]:02x}{rgb["g"]:02x}{rgb["b"]:02x}'
+
+# Function to convert HEX to RGB
+def hex_to_rgb(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
 # Function to convert DST to PES
 def convert_dst_to_pes(dst_file_path):
@@ -64,10 +73,6 @@ def parse_pes(file_path):
 
     return {"stitches": stitches, "threads": threads, "hex_colors": list(hex_colors), "png_file_url": png_url}
 
-# Function to convert RGB to HEX format
-def rgb_to_hex(rgb):
-    return f'#{rgb["r"]:02x}{rgb["g"]:02x}{rgb["b"]:02x}'
-
 # Function to modify PNG color
 def modify_png_color(png_file_path, old_hex, new_hex):
     old_rgb = hex_to_rgb(old_hex)
@@ -94,10 +99,17 @@ def modify_png_color(png_file_path, old_hex, new_hex):
 
     return modified_png_path
 
-# Function to convert HEX to RGB
-def hex_to_rgb(hex_color):
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+# Function to update threads based on hex color changes
+def update_threads(pattern, hex_colors, threads):
+    updated_threads = []
+
+    for i, hex_color in enumerate(hex_colors):
+        new_thread = EmbThread(threads[i]['r'], threads[i]['g'], threads[i]['b'])
+        updated_threads.append(new_thread)
+    
+    # Apply the updated threads to the pattern
+    pattern.threadlist = updated_threads
+    return pattern
 
 # Route to handle DST file upload and conversion to PES
 @app.route('/upload-dst', methods=['POST'])
@@ -166,10 +178,48 @@ def modify_png_color_api():
     except Exception as e:
         return jsonify({"error": f"Failed to modify PNG color: {str(e)}"}), 500
 
-# Route to serve the generated PNG file
+# Route to create a new PES file
+@app.route('/create-pes', methods=['POST'])
+def create_pes():
+    data = request.json
+    stitches = data.get('stitches')
+    threads = data.get('threads')
+    hex_colors = data.get('hex_colors')
+
+    if not stitches or not threads or not hex_colors:
+        return jsonify({"error": "Missing required parameters: 'stitches', 'threads', or 'hex_colors'"}), 400
+
+    # Create a new pattern
+    pattern = EmbPattern()
+
+    # Add threads
+    for thread_data in threads:
+        thread = EmbThread(thread_data['r'], thread_data['g'], thread_data['b'])
+        pattern.add_thread(thread)
+
+    # Update threads based on hex color changes
+    pattern = update_threads(pattern, hex_colors, threads)
+
+    # Add stitches
+    for stitch_data in stitches:
+        x, y, command = stitch_data['x'], stitch_data['y'], stitch_data['command']
+        pattern.add_stitch(x, y, command)
+
+    # Generate PES file
+    pes_filename = 'generated_pattern.pes'
+    pes_file_path = os.path.join(app.config['UPLOAD_FOLDER'], pes_filename)
+    write_pes(pattern, pes_file_path)
+
+    # Return PES file URL
+    base_url = 'https://dstupload.onrender.com'
+    pes_url = f'{base_url}/uploads/{urllib.parse.quote(pes_filename)}'
+
+    return jsonify({"pes_file_url": pes_url})
+
+# Route to serve the generated PES file
 @app.route('/uploads/<filename>', methods=['GET'])
-def download_png(filename):
-    return send_from_directory(app.config['PNG_FOLDER'], filename)
+def download_pes(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8000)

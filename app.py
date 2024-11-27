@@ -178,71 +178,62 @@ def modify_png_color_api():
     except Exception as e:
         return jsonify({"error": f"Failed to modify PNG color: {str(e)}"}), 500
 
-
-# Route to update PES thread colors
-@app.route('/update-pes-threads', methods=['POST'])
-def update_pes_threads():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-
-    file = request.files['file']
-    hex_colors = request.form.get('hex_colors')
-
-    if not hex_colors:
-        return jsonify({"error": "Missing 'hex_colors' parameter"}), 400
-
-    # Convert hex_colors from string to list
+# Save PES file and return URL
+@app.route('/convert_to_pes', methods=['POST'])
+def convert_to_pes():
     try:
-        hex_colors = eval(hex_colors)  # Convert string to list
-        if not isinstance(hex_colors, list) or not all(isinstance(color, str) for color in hex_colors):
-            raise ValueError
-    except Exception:
-        return jsonify({"error": "Invalid 'hex_colors' format. It must be a string representation of a list."}), 400
+        # Retrieve file from the request
+        file = request.files.get('file')
+        if not file:
+            return jsonify({"error": "No file provided"}), 400
 
-    if not file.filename.lower().endswith('.pes'):
-        return jsonify({"error": "Invalid file format. Please upload a .pes file."}), 400
+        # Save the uploaded file to the uploads directory
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(file_path)
 
-    # Save the uploaded PES file
-    pes_file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-    file.save(pes_file_path)
+        # Read the embroidery file
+        emb = read(file_path)
 
-    try:
-        # Read the PES file
-        pattern = read(pes_file_path)
+        # Specify output PES file path
+        pes_filename = os.path.splitext(file.filename)[0] + '.pes'
+        pes_path = os.path.join(app.config['UPLOAD_FOLDER'], pes_filename)
 
-        # Update the threads in the PES file based on the provided hex colors
-        for i, hex_color in enumerate(hex_colors):
-            if i < len(pattern.threadlist):  # Ensure we don't exceed the number of threads
-                pattern.threadlist[i].set_hex_color(hex_color)
+        # Write the PES file
+        write_pes(emb, pes_path, DEFAULT_THREADS)
 
-        # Save the updated PES file
-        updated_pes_file_path = os.path.splitext(pes_file_path)[0] + '_updated.pes'
-        write_pes(pattern, updated_pes_file_path)
+        # Generate the PES file URL
+        pes_url = f"{BASE_URL}/uploads/{pes_filename}"
 
-        # Generate URL for the updated PES file
-        updated_pes_url = f'{BASE_URL}/uploads/{urllib.parse.quote(os.path.basename(updated_pes_file_path))}'
+        # Return the PES file URL in the response
+        return jsonify({"pes_file_url": pes_url}), 200
 
-        return jsonify({
-            "pes_file_url": updated_pes_url
-        })
     except Exception as e:
-        return jsonify({"error": f"Failed to update PES threads: {str(e)}"}), 500
+        return jsonify({"error": f"Failed to convert file to PES: {str(e)}"}), 500
 
 
-# Serve uploaded files
+# Serve uploaded PES files
 @app.route('/uploads/<path:filename>', methods=['GET'])
 def serve_file(filename):
     try:
         # Decode the filename to handle encoded spaces
         decoded_filename = urllib.parse.unquote(filename)
-        # Serve files from both the uploads and png folders
-        if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], decoded_filename)):
+
+        # Log the requested filename
+        print(f"Requested file: {decoded_filename}")
+
+        # Check if the requested file exists in the uploads directory
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], decoded_filename)
+
+        if os.path.exists(file_path):
+            print(f"Found file: {file_path}")
             return send_from_directory(app.config['UPLOAD_FOLDER'], decoded_filename)
-        elif os.path.exists(os.path.join(app.config['PNG_FOLDER'], decoded_filename)):
-            return send_from_directory(app.config['PNG_FOLDER'], decoded_filename)
         else:
+            print(f"File not found: {file_path}")
             return jsonify({"error": "File not found"}), 404
+
     except Exception as e:
+        # Log the error for debugging purposes
+        print(f"Error occurred while serving file: {str(e)}")
         return jsonify({"error": f"Failed to serve file: {str(e)}"}), 500
 
 

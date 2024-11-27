@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory
 from pyembroidery import read, write_pes, write_png, EmbThread
 from flask_cors import CORS
+from PIL import Image
 import os
 import urllib.parse
 
@@ -67,6 +68,37 @@ def parse_pes(file_path):
 def rgb_to_hex(rgb):
     return f'#{rgb["r"]:02x}{rgb["g"]:02x}{rgb["b"]:02x}'
 
+# Function to modify PNG color
+def modify_png_color(png_file_path, old_hex, new_hex):
+    old_rgb = hex_to_rgb(old_hex)
+    new_rgb = hex_to_rgb(new_hex)
+
+    # Open the PNG image
+    img = Image.open(png_file_path)
+    img = img.convert("RGBA")  # Ensure the image is in RGBA mode
+
+    # Get pixel data
+    pixels = img.load()
+
+    # Replace old color with the new one
+    width, height = img.size
+    for y in range(height):
+        for x in range(width):
+            current_color = pixels[x, y]
+            if current_color[:3] == old_rgb:  # Ignore alpha channel
+                pixels[x, y] = (new_rgb[0], new_rgb[1], new_rgb[2], current_color[3])
+
+    # Save the modified image
+    modified_png_path = os.path.splitext(png_file_path)[0] + '_modified.png'
+    img.save(modified_png_path)
+
+    return modified_png_path
+
+# Function to convert HEX to RGB
+def hex_to_rgb(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
 # Route to handle DST file upload and conversion to PES
 @app.route('/upload-dst', methods=['POST'])
 def upload_dst():
@@ -97,6 +129,42 @@ def upload_dst():
         })
     else:
         return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
+
+# Route to modify PNG color
+@app.route('/modify-png-color', methods=['POST'])
+def modify_png_color_api():
+    data = request.json
+    png_url = data.get('png_url')
+    old_hex = data.get('old_hex')
+    new_hex = data.get('new_hex')
+
+    if not png_url or not old_hex or not new_hex:
+        return jsonify({"error": "Missing required parameters"}), 400
+
+    # Decode the URL to handle any encoded spaces or characters
+    decoded_png_url = urllib.parse.unquote(png_url)
+
+    # Determine the local file path from the PNG URL
+    filename = decoded_png_url.split("/")[-1]
+    png_file_path = os.path.join(app.config['PNG_FOLDER'], filename)
+
+    if not os.path.exists(png_file_path):
+        return jsonify({"error": "PNG file not found"}), 404
+
+    try:
+        # Modify the PNG color
+        modified_png_path = modify_png_color(png_file_path, old_hex, new_hex)
+
+        # URL for the modified PNG file
+        base_url = 'https://dstupload.onrender.com'
+        modified_png_url = f'{base_url}/uploads/{urllib.parse.quote(modified_png_path.split("/")[-1])}'
+
+        return jsonify({
+            "modified_png_url": modified_png_url
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to modify PNG color: {str(e)}"}), 500
 
 # Route to serve the generated PNG file
 @app.route('/uploads/<filename>', methods=['GET'])

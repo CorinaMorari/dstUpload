@@ -423,12 +423,3 @@ def download_pes(filename):
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8000)
-
-# Route to serve the generated PES file
-@app.route('/uploads/<filename>', methods=['GET'])
-def download_pes(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=8000)

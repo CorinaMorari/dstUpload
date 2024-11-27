@@ -9,7 +9,7 @@ import urllib.parse
 app = Flask(__name__)
 CORS(app)  # Enable Cross-Origin Resource Sharing (CORS)
 
-# Configure upload and PNG folders
+# Configure folders
 UPLOAD_FOLDER = './uploads'
 PNG_FOLDER = './pngs'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -17,6 +17,9 @@ os.makedirs(PNG_FOLDER, exist_ok=True)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PNG_FOLDER'] = PNG_FOLDER
+
+# Base URL for serving files
+BASE_URL = 'https://dstupload.onrender.com'
 
 # Default threads (example RGB colors)
 DEFAULT_THREADS = [
@@ -31,7 +34,7 @@ DEFAULT_THREADS = [
 # Function to convert DST to PES
 def convert_dst_to_pes(dst_file_path):
     pattern = read(dst_file_path)
-    pes_file_path = os.path.splitext(dst_file_path)[0] + '.pes'
+    pes_file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.splitext(os.path.basename(dst_file_path))[0] + '.pes')
     write_pes(pattern, pes_file_path)
     return pes_file_path
 
@@ -56,13 +59,12 @@ def parse_pes(file_path):
         hex_colors.add(rgb_to_hex(rgb))  # Add HEX value to the set
 
     # Generate the PNG file
-    png_filename = os.path.basename(file_path) + '.png'
+    png_filename = os.path.splitext(os.path.basename(file_path))[0] + '.png'
     png_file_path = os.path.join(app.config['PNG_FOLDER'], png_filename)
     write_png(pattern, png_file_path)
 
-    # URL for the PNG file (adjust domain as necessary)
-    base_url = 'https://dstupload.onrender.com'
-    png_url = f'{base_url}/uploads/{urllib.parse.quote(png_filename)}'
+    # URL for the PNG file
+    png_url = f'{BASE_URL}/uploads/{urllib.parse.quote(png_filename)}'
 
     return {"stitches": stitches, "threads": threads, "hex_colors": list(hex_colors), "png_file_url": png_url}
 
@@ -125,8 +127,7 @@ def upload_dst():
             parsed_data = parse_pes(pes_file_path)
 
             # Generate the URL for the PES file
-            base_url = 'https://dstupload.onrender.com'
-            pes_file_url = f'{base_url}/uploads/{urllib.parse.quote(os.path.basename(pes_file_path))}'
+            pes_file_url = f'{BASE_URL}/uploads/{urllib.parse.quote(os.path.basename(pes_file_path))}'
 
         except Exception as e:
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
@@ -168,8 +169,7 @@ def modify_png_color_api():
         modified_png_path = modify_png_color(png_file_path, old_hex, new_hex)
 
         # URL for the modified PNG file
-        base_url = 'https://dstupload.onrender.com'
-        modified_png_url = f'{base_url}/uploads/{urllib.parse.quote(modified_png_path.split("/")[-1])}'
+        modified_png_url = f'{BASE_URL}/uploads/{urllib.parse.quote(os.path.basename(modified_png_path))}'
 
         return jsonify({
             "modified_png_url": modified_png_url
@@ -182,7 +182,6 @@ def modify_png_color_api():
 # Route to update PES thread colors
 @app.route('/update-pes-threads', methods=['POST'])
 def update_pes_threads():
-    # Check if a file is uploaded
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
@@ -200,7 +199,6 @@ def update_pes_threads():
     except Exception:
         return jsonify({"error": "Invalid 'hex_colors' format. It must be a string representation of a list."}), 400
 
-    # Validate the uploaded file
     if not file.filename.lower().endswith('.pes'):
         return jsonify({"error": "Invalid file format. Please upload a .pes file."}), 400
 
@@ -222,20 +220,31 @@ def update_pes_threads():
         write_pes(pattern, updated_pes_file_path)
 
         # Generate URL for the updated PES file
-        base_url = 'https://dstupload.onrender.com'
-        updated_pes_url = f'{base_url}/uploads/{urllib.parse.quote(os.path.basename(updated_pes_file_path))}'
+        updated_pes_url = f'{BASE_URL}/uploads/{urllib.parse.quote(os.path.basename(updated_pes_file_path))}'
 
         return jsonify({
             "pes_file_url": updated_pes_url
         })
     except Exception as e:
-        return jsonify({"error": f"Failed to process PES file: {str(e)}"}), 500
-
-# Route to serve the generated PNG file
-@app.route('/uploads/<filename>', methods=['GET'])
-def download_png(filename):
-    return send_from_directory(app.config['PNG_FOLDER'], filename)
+        return jsonify({"error": f"Failed to update PES threads: {str(e)}"}), 500
 
 
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=8000)
+# Serve uploaded files
+@app.route('/uploads/<path:filename>', methods=['GET'])
+def serve_file(filename):
+    try:
+        # Decode the filename to handle encoded spaces
+        decoded_filename = urllib.parse.unquote(filename)
+        # Serve files from both the uploads and png folders
+        if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], decoded_filename)):
+            return send_from_directory(app.config['UPLOAD_FOLDER'], decoded_filename)
+        elif os.path.exists(os.path.join(app.config['PNG_FOLDER'], decoded_filename)):
+            return send_from_directory(app.config['PNG_FOLDER'], decoded_filename)
+        else:
+            return jsonify({"error": "File not found"}), 404
+    except Exception as e:
+        return jsonify({"error": f"Failed to serve file: {str(e)}"}), 500
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

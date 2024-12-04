@@ -43,7 +43,7 @@ def parse_tbf(file_path):
     # Extract the threads used in the TBF file
     threads = []
     hex_colors = set()
-
+    print(pattern.threadlist)
     for thread in pattern.threadlist:
         rgb = {"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()}
         threads.append(rgb)

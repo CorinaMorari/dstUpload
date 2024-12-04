@@ -225,5 +225,10 @@ def update_tbf_threads():
 def serve_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+@app.route('/uploads/pngs/<path:filename>', methods=['GET'])
+def serve_png(filename):
+    return send_from_directory(app.config['PNG_FOLDER'], filename)
+
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from pyembroidery import read, write_tbf, write_png, EmbThread  # Assuming pyembroidery supports .tbf format
+from pyembroidery import read, write_tbf, write_png, EmbThread, read_tbf  # Assuming pyembroidery supports .tbf format
 from flask_cors import CORS
 from PIL import Image
 import os
@@ -21,25 +21,18 @@ app.config['PNG_FOLDER'] = PNG_FOLDER
 # Base URL for serving files
 BASE_URL = 'https://dstupload.onrender.com'
 
-# Default threads (example RGB colors)
-DEFAULT_THREADS = [
-    EmbThread(0, 0, 0),  # Black
-    EmbThread(255, 255, 255),  # White
-    EmbThread(255, 0, 0),  # Red
-    EmbThread(0, 255, 0),  # Green
-    EmbThread(0, 0, 255),  # Blue
-]
-
 # Function to convert DST to TBF (instead of PES)
 def convert_dst_to_tbf(dst_file_path):
     pattern = read(dst_file_path)
+
     tbf_file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.splitext(os.path.basename(dst_file_path))[0] + '.tbf')
     write_tbf(pattern, tbf_file_path)
+
     return tbf_file_path
 
 # Function to parse TBF file, set thread colors, and generate PNG
 def parse_tbf(file_path):
-    pattern = read(file_path)
+    pattern = read_tbf(file_path)
     stitches = []
 
     # Extract stitch information
@@ -56,13 +49,14 @@ def parse_tbf(file_path):
         threads.append(rgb)
         hex_colors.add(rgb_to_hex(rgb))  # Add HEX value to the set
 
+
     # Generate the PNG file
     png_filename = os.path.splitext(os.path.basename(file_path))[0] + '.png'
     png_file_path = os.path.join(app.config['PNG_FOLDER'], png_filename)
     write_png(pattern, png_file_path)
 
     # URL for the PNG file
-    png_url = f'{BASE_URL}/uploads/{urllib.parse.quote(png_filename)}'
+    png_url = f'{BASE_URL}/uploads/pngs/{urllib.parse.quote(png_filename)}'
 
     return {"stitches": stitches, "threads": threads, "hex_colors": list(hex_colors), "png_file_url": png_url}
 
@@ -162,7 +156,7 @@ def modify_png_color_api():
         modified_png_path = modify_png_color(png_file_path, old_hex, new_hex)
 
         # URL for the modified PNG file
-        modified_png_url = f'{BASE_URL}/uploads/{urllib.parse.quote(os.path.basename(modified_png_path))}'
+        modified_png_url = f'{BASE_URL}/uploads/pngs/{urllib.parse.quote(os.path.basename(modified_png_path))}'
 
         return jsonify({
             "modified_png_url": modified_png_url

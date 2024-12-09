@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_from_directory, url_for
 from pyembroidery import read, write_dst, EmbThread
 from flask_cors import CORS
 import os
@@ -8,10 +8,13 @@ import random
 app = Flask(__name__)
 CORS(app)
 
-# Configure folder for uploads
+# Configure folder for uploads and public file serving
 UPLOAD_FOLDER = './uploads'
+PROCESSED_FOLDER = './processed'  # Folder for storing processed DST files
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['PROCESSED_FOLDER'] = PROCESSED_FOLDER
 
 # Madeira Poly thread colors and codes
 MADEIRA_THREADS = [
@@ -42,7 +45,7 @@ def set_madeira_threads(pattern):
         new_thread.catalog_number = madeira_thread["code"]
         thread.set(new_thread)
 
-# Endpoint to upload DST and return updated DST with Madeira colors
+# Endpoint to upload DST and return a URL to the updated DST with Madeira colors
 @app.route('/upload-dst', methods=['POST'])
 def upload_dst():
     if 'file' not in request.files:
@@ -64,20 +67,22 @@ def upload_dst():
         set_madeira_threads(pattern)
 
         # Save the updated DST file
-        updated_dst_path = os.path.splitext(file_path)[0] + '_updated.dst'
+        updated_dst_path = os.path.join(app.config['PROCESSED_FOLDER'], os.path.splitext(file.filename)[0] + '_updated.dst')
         write_dst(pattern, updated_dst_path)
 
-        # Return the updated file
-        return send_file(
-            updated_dst_path,
-            as_attachment=True,
-            download_name=os.path.basename(updated_dst_path),
-            mimetype='application/octet-stream'
-        )
+        # Generate the URL for the processed file with your domain
+        file_url = f"https://dstupload.onrender.com/processed/{os.path.basename(updated_dst_path)}"
+
+        # Return the URL to the updated DST file
+        return jsonify({"message": "File processed successfully", "file_url": file_url})
 
     except Exception as e:
         return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
 
+# Serve static files from the processed folder
+@app.route('/processed/<filename>')
+def processed_file(filename):
+    return send_from_directory(app.config['PROCESSED_FOLDER'], filename)
 
 if __name__ == '__main__':
     app.run(debug=True)

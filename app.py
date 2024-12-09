@@ -40,7 +40,6 @@ def get_dst_info(dst_file_path):
 
     # Extract basic information
     stitches = len(pattern.stitches)
-    print(pattern.get_as_stitchblock())
 
     return {
         "stitches": stitches,
@@ -50,24 +49,29 @@ def get_dst_info(dst_file_path):
 def set_madeira_colors(dst_file_path):
     pattern = read(dst_file_path)
 
-    # Manually assign thread colors based on Madeira thread codes
-    num_colors = len(madeira_colors)
-
-    # Get stitch blocks (each block is a group of stitches with the same color)
+    # Get stitch blocks (each block contains stitches with the same color)
     stitch_blocks = pattern.get_as_stitchblock()
 
-    # Iterate over the stitch blocks and assign a random Madeira color to each block
-    current_color_index = 0  # To loop through Madeira colors
-    for block in stitch_blocks:
-        # Pick a random Madeira color
+    # Create a threadlist and add a color for each block (or color used)
+    threadlist = []
+    num_colors = len(madeira_colors)
+
+    for i, block in enumerate(stitch_blocks):
+        # Choose a random Madeira color for each block
         madeira_thread_code = random.choice(list(madeira_colors.values()))
 
-        # Set the color for the block
-        for stitch in block:  # Each block contains a group of stitches
-            stitch.set_color(madeira_thread_code[0], madeira_thread_code[1], madeira_thread_code[2])
+        # If the block has no thread yet, create and assign one
+        if i >= len(threadlist):
+            thread = Thread()
+            thread.set_color(madeira_thread_code[0], madeira_thread_code[1], madeira_thread_code[2])
+            threadlist.append(thread)
 
-        # Increment the index for the next color (if desired)
-        current_color_index += 1
+        # Link each stitch block to the corresponding thread
+        for stitch in block:
+            stitch.thread = threadlist[i % len(threadlist)]  # Assign the appropriate thread color
+
+    # Update the pattern's threadlist with the new threads
+    pattern.threadlist = threadlist
 
     # Save the updated file with the new thread colors
     updated_dst_file_path = dst_file_path.replace(".dst", "_updated.dst")

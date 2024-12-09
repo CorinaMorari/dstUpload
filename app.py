@@ -28,22 +28,21 @@ def get_dst_info(dst_file_path):
     #dst with color
     pattern = EmbPattern()
     pattern.add_block([(0, 0), (0, 100), (100, 100), (100, 0), (0, 0)], "red")
-    write_dst(pattern, "file.dst")
 
-    # Generate the PNG file
-    png_filename = os.path.splitext(os.path.basename("file.dst"))[0] + '.png'
-    png_file_path = os.path.join(app.config['UPLOAD_FOLDER'], png_filename)
-    write_png(pattern, png_file_path)
+    # Save the DST file in the uploads folder
+    dst_filename = 'file.dst'
+    dst_file_path = os.path.join(app.config['UPLOAD_FOLDER'], dst_filename)
+    write_dst(pattern, dst_file_path)
 
-    # URL for the PNG file
-    png_url = f'{BASE_URL}/uploads/{urllib.parse.quote(png_filename)}'
+    # Generate the URL for the DST file
+    dst_url = f'{BASE_URL}/uploads/{urllib.parse.quote(dst_filename)}'
 
     return {
         "stitches": stitches,
         "thread_count": thread_count,
         "thread_colors": thread_colors,
         "extras": extras,
-        "png_url": png_url
+        "dst_url": dst_url
     }
 
 # Route to handle DST file upload and return information

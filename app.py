@@ -1,19 +1,52 @@
-from pyembroidery import Embroidery, Thread, Design, Color
+from flask import Flask, request, jsonify
+from pyembroidery import read
+import os
 
-# Create threads based on color numbers (e.g., color code '1000' is a red thread in some systems)
-thread_1 = Thread(Color('1756'))  # Example: thread color with number
-thread_2 = Thread(Color('1553'))  # Another color code for blue
+# Initialize Flask app
+app = Flask(__name__)
 
-# Create a design (start with an empty design)
-design = Design()
+# Configure folders
+UPLOAD_FOLDER = './uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Add some stitches with threads
-design.add_stitch(10, 10, thread=thread_1)  # Thread 1
-design.add_stitch(20, 20, thread=thread_2)  # Thread 2
+# Function to read DST file and extract basic information
+def get_dst_info(dst_file_path):
+    # Read the DST file
+    pattern = read(dst_file_path)
 
-# Save the design as a DST file
-with open("output.dst", "wb") as f:
-    design.save(f)
+    # Extract basic information
+    stitches = len(pattern.stitches)
+    thread_count = len(pattern.threadlist)
+    thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
 
-# Thread information (can be used separately in documentation or software)
-print(f"Thread 1 is color: {thread_1.color}, Thread 2 is color: {thread_2.color}")
+    return {
+        "stitches": stitches,
+        "thread_count": thread_count,
+        "thread_colors": thread_colors
+    }
+
+# Route to handle DST file upload and return information
+@app.route('/upload-dst', methods=['POST'])
+def upload_dst():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files['file']
+
+    if file.filename.lower().endswith('.dst'):
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(file_path)
+
+        try:
+            # Get information about the DST file
+            dst_info = get_dst_info(file_path)
+
+            return jsonify(dst_info)
+        except Exception as e:
+            return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
+    else:
+        return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
+
+if __name__ == '__main__':
+    app.run(debug=True)

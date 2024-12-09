@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, url_for
+from flask import Flask, request, jsonify, send_from_directory
 from pyembroidery import read, write_dst, EmbThread
 from flask_cors import CORS
 import os
@@ -37,13 +37,26 @@ MADEIRA_THREADS = [
 
 # Function to set random Madeira thread colors
 def set_madeira_threads(pattern):
-    for thread in pattern.threadlist:
+    thread_info = []  # Store the list of thread information
+    for i in range(len(pattern.stitchlist)):  # Assuming the stitches exist
         madeira_thread = random.choice(MADEIRA_THREADS)
         new_thread = EmbThread()
         new_thread.set_color(*madeira_thread["rgb"])
         new_thread.description = madeira_thread["name"]
         new_thread.catalog_number = madeira_thread["code"]
-        thread.set(new_thread)
+        
+        # Assign thread to stitch (although it's not saved in the .dst file, it's kept in the pattern object)
+        pattern.stitchlist[i].thread = new_thread
+        
+        # Add the thread info to the list
+        thread_info.append({
+            "index": i + 1,
+            "name": new_thread.description,
+            "code": new_thread.catalog_number,
+            "rgb": new_thread.get_color()
+        })
+
+    return thread_info
 
 # Endpoint to upload DST and return a URL to the updated DST with Madeira colors
 @app.route('/upload-dst', methods=['POST'])
@@ -63,8 +76,8 @@ def upload_dst():
         # Read the DST file
         pattern = read(file_path)
 
-        # Set Madeira Poly threads
-        set_madeira_threads(pattern)
+        # Set Madeira Poly threads and get the thread info
+        thread_info = set_madeira_threads(pattern)
 
         # Save the updated DST file
         updated_dst_path = os.path.join(app.config['PROCESSED_FOLDER'], os.path.splitext(file.filename)[0] + '_updated.dst')
@@ -73,8 +86,12 @@ def upload_dst():
         # Generate the URL for the processed file with your domain
         file_url = f"https://dstupload.onrender.com/processed/{os.path.basename(updated_dst_path)}"
 
-        # Return the URL to the updated DST file
-        return jsonify({"message": "File processed successfully", "file_url": file_url})
+        # Return the URL to the updated DST file and thread info
+        return jsonify({
+            "message": "File processed successfully",
+            "file_url": file_url,
+            "thread_info": thread_info
+        })
 
     except Exception as e:
         return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500

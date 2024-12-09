@@ -17,13 +17,15 @@ def get_dst_info(dst_file_path):
 
     # Extract basic information
     stitches = len(pattern.stitches)
+    extras = pattern.extras
     thread_count = len(pattern.threadlist)
     thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
 
     return {
         "stitches": stitches,
         "thread_count": thread_count,
-        "thread_colors": thread_colors
+        "thread_colors": thread_colors,
+        "extras": extras
     }
 
 # Route to handle DST file upload and return information

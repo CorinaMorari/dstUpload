@@ -40,7 +40,7 @@ def get_dst_info(dst_file_path):
 
     # Extract basic information
     stitches = len(pattern.stitches)
-    print(pattern.blocks)
+    print(pattern.get_as_stitchblock())
 
     return {
         "stitches": stitches,
@@ -51,16 +51,20 @@ def set_madeira_colors(dst_file_path):
     pattern = read(dst_file_path)
 
     # Manually assign thread colors based on Madeira thread codes
-    current_color_index = 0  # To loop through Madeira colors
     num_colors = len(madeira_colors)
 
-    # Iterate over the blocks in the pattern
-    for block in pattern.blocks:
+    # Get stitch blocks (each block is a group of stitches with the same color)
+    stitch_blocks = pattern.get_as_stitchblock()
+
+    # Iterate over the stitch blocks and assign a random Madeira color to each block
+    current_color_index = 0  # To loop through Madeira colors
+    for block in stitch_blocks:
         # Pick a random Madeira color
         madeira_thread_code = random.choice(list(madeira_colors.values()))
-        
-        # Assign color to the block (we assume each block has a color field)
-        block.color = madeira_thread_code  # Set the block's color
+
+        # Set the color for the block
+        for stitch in block:  # Each block contains a group of stitches
+            stitch.set_color(madeira_thread_code[0], madeira_thread_code[1], madeira_thread_code[2])
 
         # Increment the index for the next color (if desired)
         current_color_index += 1

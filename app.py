@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
-from pyembroidery import read
+from pyembroidery import *
+import urllib.parse
 import os
 
 # Initialize Flask app
@@ -9,6 +10,9 @@ app = Flask(__name__)
 UPLOAD_FOLDER = './uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Base URL for serving files
+BASE_URL = 'https://dstupload.onrender.com'
 
 # Function to read DST file and extract basic information
 def get_dst_info(dst_file_path):
@@ -21,11 +25,25 @@ def get_dst_info(dst_file_path):
     thread_count = len(pattern.threadlist)
     thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
 
+    #dst with color
+    pattern = EmbPattern()
+    pattern.add_block([(0, 0), (0, 100), (100, 100), (100, 0), (0, 0)], "red")
+    write_dst(pattern, "file.dst")
+
+    # Generate the PNG file
+    png_filename = os.path.splitext(os.path.basename("file.dst"))[0] + '.png'
+    png_file_path = os.path.join(app.config['PNG_FOLDER'], png_filename)
+    write_png(pattern, png_file_path)
+
+    # URL for the PNG file
+    png_url = f'{BASE_URL}/uploads/pngs/{urllib.parse.quote(png_filename)}'
+
     return {
         "stitches": stitches,
         "thread_count": thread_count,
         "thread_colors": thread_colors,
-        "extras": extras
+        "extras": extras,
+        "png_url": png_url
     }
 
 # Route to handle DST file upload and return information

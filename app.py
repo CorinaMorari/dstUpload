@@ -38,7 +38,7 @@ MADEIRA_THREADS = [
 # Function to manually set Madeira thread colors for the pattern
 def set_madeira_threads(pattern):
     thread_info = []  # List to store the thread information
-    for i, stitch in enumerate(pattern.get_stitch_data()):
+    for stitch in pattern.stitches:
         madeira_thread = random.choice(MADEIRA_THREADS)
         new_thread = EmbThread()
         new_thread.set_color(*madeira_thread["rgb"])
@@ -47,14 +47,44 @@ def set_madeira_threads(pattern):
         
         # Add thread info for the stitch
         thread_info.append({
-            "index": i + 1,
             "name": new_thread.description,
             "code": new_thread.catalog_number,
             "rgb": new_thread.get_color()
         })
-        pattern.add_thread(new_thread)  # Assign the thread color to the pattern's stitch
+        stitch.thread = new_thread  # Assign the thread color to the stitch
 
     return thread_info
+
+# Endpoint to preview thread information before uploading
+@app.route('/preview-dst', methods=['POST'])
+def preview_dst():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files['file']
+
+    if not file.filename.lower().endswith('.dst'):
+        return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
+
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+    file.save(file_path)
+
+    try:
+        # Read the DST file
+        pattern = read(file_path)
+
+        # Set Madeira Poly threads and get the thread info (preview)
+        thread_info = set_madeira_threads(pattern)
+
+        # Return the thread info for preview
+        return jsonify({
+            "message": "Preview created successfully",
+            "thread_info": thread_info
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
+
 
 # Endpoint to upload DST and return a URL to the updated DST with Madeira colors
 @app.route('/upload-dst', methods=['POST'])

@@ -8,9 +8,9 @@ import random
 app = Flask(__name__)
 CORS(app)
 
-# Configure folder for uploads and public file serving
+# Configure folder for uploads and processed DST files
 UPLOAD_FOLDER = './uploads'
-PROCESSED_FOLDER = './processed'  # Folder for storing processed DST files
+PROCESSED_FOLDER = './processed'  # Folder to store processed DST files
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -35,26 +35,24 @@ MADEIRA_THREADS = [
     {"code": "1747", "name": "Cardinal", "rgb": (153, 0, 51)}
 ]
 
-# Function to set random Madeira thread colors
+# Function to manually set Madeira thread colors for the pattern
 def set_madeira_threads(pattern):
-    thread_info = []  # Store the list of thread information
-    for i in range(len(pattern.stitchlist)):  # Assuming the stitches exist
+    thread_info = []  # List to store the thread information
+    for i, stitch in enumerate(pattern.get_stitch_data()):
         madeira_thread = random.choice(MADEIRA_THREADS)
         new_thread = EmbThread()
         new_thread.set_color(*madeira_thread["rgb"])
         new_thread.description = madeira_thread["name"]
         new_thread.catalog_number = madeira_thread["code"]
         
-        # Assign thread to stitch (although it's not saved in the .dst file, it's kept in the pattern object)
-        pattern.stitchlist[i].thread = new_thread
-        
-        # Add the thread info to the list
+        # Add thread info for the stitch
         thread_info.append({
             "index": i + 1,
             "name": new_thread.description,
             "code": new_thread.catalog_number,
             "rgb": new_thread.get_color()
         })
+        pattern.add_thread(new_thread)  # Assign the thread color to the pattern's stitch
 
     return thread_info
 
@@ -83,7 +81,7 @@ def upload_dst():
         updated_dst_path = os.path.join(app.config['PROCESSED_FOLDER'], os.path.splitext(file.filename)[0] + '_updated.dst')
         write_dst(pattern, updated_dst_path)
 
-        # Generate the URL for the processed file with your domain
+        # Generate the URL for the processed file
         file_url = f"https://dstupload.onrender.com/processed/{os.path.basename(updated_dst_path)}"
 
         # Return the URL to the updated DST file and thread info

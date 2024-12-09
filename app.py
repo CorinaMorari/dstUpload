@@ -32,11 +32,11 @@ def get_dst_info(dst_file_path):
 
     # Generate the PNG file
     png_filename = os.path.splitext(os.path.basename("file.dst"))[0] + '.png'
-    png_file_path = os.path.join(app.config['PNG_FOLDER'], png_filename)
+    png_file_path = os.path.join(app.config['UPLOAD_FOLDER'], png_filename)
     write_png(pattern, png_file_path)
 
     # URL for the PNG file
-    png_url = f'{BASE_URL}/uploads/pngs/{urllib.parse.quote(png_filename)}'
+    png_url = f'{BASE_URL}/uploads/{urllib.parse.quote(png_filename)}'
 
     return {
         "stitches": stitches,

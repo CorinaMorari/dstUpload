@@ -17,18 +17,18 @@ def get_dst_info(dst_file_path):
 
     # Print out general data
     print("Pattern Information:")
-    print(f"Stitch Count: {embroidery.stitch_count()}")
-    print(f"Width: {embroidery.width()}")
-    print(f"Height: {embroidery.height()}")
-    print(f"Thread Count: {embroidery.color_count()}")
-    print(f"Thread Colors: {embroidery.get_colors()}")
+    print(f"Stitch Count: {embroidery.get_stitch_count()}")  # Correct method for stitch count
+    print(f"Width: {embroidery.width()}")  # Width of the pattern
+    print(f"Height: {embroidery.height()}")  # Height of the pattern
+    print(f"Thread Count: {len(embroidery.get_colors())}")  # Number of thread colors
+    print(f"Thread Colors: {embroidery.get_colors()}")  # List of thread colors
 
     # Extract basic information
-    stitches = embroidery.stitch_count()
-    width = embroidery.width()
-    height = embroidery.height()
-    thread_count = embroidery.color_count()
-    thread_colors = embroidery.get_colors()  # Get a list of thread colors
+    stitches = embroidery.get_stitch_count()  # Correct method to get stitch count
+    width = embroidery.width()  # Width of the embroidery
+    height = embroidery.height()  # Height of the embroidery
+    thread_count = len(embroidery.get_colors())  # Number of thread colors
+    thread_colors = embroidery.get_colors()  # Get the thread colors
 
     return {
         "stitches": stitches,

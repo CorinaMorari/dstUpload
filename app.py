@@ -1,4 +1,4 @@
-from pymbroidery import Embroidery, Thread, Design, Color
+from pyembroidery import Embroidery, Thread, Design, Color
 
 # Create threads based on color numbers (e.g., color code '1000' is a red thread in some systems)
 thread_1 = Thread(Color('1756'))  # Example: thread color with number

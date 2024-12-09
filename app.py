@@ -16,9 +16,11 @@ BASE_URL = 'https://dstupload.onrender.com'
 
 # Function to create DST with color and generate the URL
 def create_dst_with_color():
-    # Create the pattern with color
-    pattern = EmbPattern()
-    pattern.add_block([(0, 0), (0, 100), (100, 100), (100, 0), (0, 0)], "red")
+    # Define the color (red) using RGB values
+red_thread = EmbThread(255, 0, 0)  # RGB for red
+
+# Add a block to the pattern with the defined color
+pattern.add_block([(0, 0), (0, 100), (100, 100), (100, 0), (0, 0)], red_thread)
 
     # Save the DST file in the uploads folder
     dst_filename = 'file.dst'

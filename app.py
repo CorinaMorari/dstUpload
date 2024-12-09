@@ -13,15 +13,27 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Function to read DST file and extract basic information
 def get_dst_info(dst_file_path):
     # Read the DST file
-    pattern = read(dst_file_path)
+    embroidery = read(dst_file_path)
+
+    # Print out general data
+    print("Pattern Information:")
+    print(f"Stitch Count: {embroidery.stitch_count()}")
+    print(f"Width: {embroidery.width()}")
+    print(f"Height: {embroidery.height()}")
+    print(f"Thread Count: {embroidery.color_count()}")
+    print(f"Thread Colors: {embroidery.get_colors()}")
 
     # Extract basic information
-    stitches = len(pattern.stitches)
-    thread_count = len(pattern.threadlist)
-    thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
+    stitches = embroidery.stitch_count()
+    width = embroidery.width()
+    height = embroidery.height()
+    thread_count = embroidery.color_count()
+    thread_colors = embroidery.get_colors()  # Get a list of thread colors
 
     return {
         "stitches": stitches,
+        "width": width,
+        "height": height,
         "thread_count": thread_count,
         "thread_colors": thread_colors
     }

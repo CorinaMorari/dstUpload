@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory
 from pyembroidery import *
 import os
+import random
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -39,17 +40,10 @@ def get_dst_info(dst_file_path):
 
     # Extract basic information
     stitches = len(pattern.stitches)
-    extras = pattern.extras
-    thread_count = len(pattern.threadlist)
-    
-    # Since threadlist is empty, we will return the RGB values manually set
-    thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.stitches]
+    print(pattern.blocks)
 
     return {
         "stitches": stitches,
-        "thread_count": thread_count,
-        "thread_colors": thread_colors,
-        "extras": extras
     }
 
 # Function to set Madeira colors in a DST file
@@ -58,19 +52,25 @@ def set_madeira_colors(dst_file_path):
 
     # Manually assign thread colors based on Madeira thread codes
     current_color_index = 0  # To loop through Madeira colors
-    for stitch in pattern.stitches:
-        # Apply Madeira color based on index, looping through available colors
-        madeira_thread_code = list(madeira_colors.values())[current_color_index % len(madeira_colors)]
-        stitch.set_color(madeira_thread_code[0], madeira_thread_code[1], madeira_thread_code[2])
+    num_colors = len(madeira_colors)
+
+    # Iterate over the blocks in the pattern
+    for block in pattern.blocks:
+        # Pick a random Madeira color
+        madeira_thread_code = random.choice(list(madeira_colors.values()))
         
-        # Increment the index for the next color
+        # Assign color to the block (we assume each block has a color field)
+        block.color = madeira_thread_code  # Set the block's color
+
+        # Increment the index for the next color (if desired)
         current_color_index += 1
 
-    # Save the updated file
+    # Save the updated file with the new thread colors
     updated_dst_file_path = dst_file_path.replace(".dst", "_updated.dst")
     write_dst(pattern, updated_dst_file_path)
 
     return updated_dst_file_path
+
 
 # Route to handle DST file upload and return information
 @app.route('/upload-dst', methods=['POST'])
@@ -106,10 +106,12 @@ def upload_dst():
     else:
         return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
 
+
 # Route to serve the updated DST file
 @app.route('/uploads/<filename>')
 def upload_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 
 if __name__ == '__main__':
     app.run(debug=True)

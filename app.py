@@ -30,26 +30,26 @@ COLOR_PALETTE = [
 ]
 
 # Function to add random threads to a pattern if threadlist is empty
-def add_random_threads(pattern, num_colors):
+def add_random_threads(pattern, co_value=None):
     if not pattern.threadlist:
-        for color in COLOR_PALETTE[:num_colors]:
+        for color in COLOR_PALETTE:
             thread = EmbThread()
             thread.set_color(color[0], color[1], color[2])
             thread.description = color[3]
             thread.catalog_number = color[4]
             pattern.add_thread(thread)
 
+    # Ensure the number of colors matches the CO value
+    if co_value:
+        pattern.threadlist = pattern.threadlist[:co_value]
+
 # Function to read DST file and extract detailed information
 def get_dst_info(dst_file_path):
     # Read the DST file
     pattern = read(dst_file_path)
 
-    # Extract the TC header and thread count
-    tc_header = pattern.extras.get("THREAD_COLOR_HEADER", "No TC Header Found")
-
     # Add random threads if threadlist is empty
-    num_colors = len(pattern.threadlist)
-    add_random_threads(pattern, num_colors)
+    add_random_threads(pattern)
 
     # Extract basic information
     stitches = len(pattern.stitches)
@@ -59,17 +59,17 @@ def get_dst_info(dst_file_path):
     return {
         "stitches": stitches,
         "thread_count": thread_count,
-        "extras": extras,
-        "tc_header": tc_header  # Include the TC header in the response
+        "extras": extras
     }
 
 # Function to create a new DST file with "TC" header
+# Adds thread color information in the format: "#RRGGBB,Description,Catalog Number"
 def create_dst_with_tc(file_path, output_path):
     pattern = read(file_path)
 
-    # Extract CO value (thread count) from the pattern, default to the length of the threadlist if not available
+    # Extract CO value (thread count) from the pattern, adjust it if necessary
     co_value = pattern.extras.get("CO", len(pattern.threadlist))  # Default to the length of threadlist if CO is not present
-    co_value = int(co_value)  # Ensure CO is treated as an integer
+    co_value = int(co_value) + 1  # Adjust CO to match the actual number of colors used
 
     # Add random threads if threadlist is empty
     add_random_threads(pattern, co_value)

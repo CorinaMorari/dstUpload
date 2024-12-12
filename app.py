@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from pyembroidery import *
 import os
+import urllib.parse
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -30,7 +31,8 @@ COLOR_PALETTE = [
 ]
 
 # Function to add random threads to a pattern if threadlist is empty
-def add_random_threads(pattern):
+def add_random_threads(pattern, expected_thread_count=15):
+    # Ensure there are at least 15 threads in the pattern
     if not pattern.threadlist:
         for color in COLOR_PALETTE:
             thread = EmbThread()
@@ -38,6 +40,21 @@ def add_random_threads(pattern):
             thread.description = color[3]
             thread.catalog_number = color[4]
             pattern.add_thread(thread)
+
+    # If there are fewer than expected threads, add placeholder threads
+    current_thread_count = len(pattern.threadlist)
+    if current_thread_count < expected_thread_count:
+        for _ in range(expected_thread_count - current_thread_count):
+            thread = EmbThread()
+            thread.set_color(0, 0, 0)  # Adding black or placeholder color
+            thread.description = "Empty"
+            thread.catalog_number = "0000"
+            pattern.add_thread(thread)
+
+# Function to trim thread list to match the number of colors in the DST
+def trim_thread_list_to_dsts_colors(pattern, color_count):
+    if len(pattern.threadlist) > color_count:
+        pattern.threadlist = pattern.threadlist[:color_count]
 
 # Function to read DST file and extract detailed information
 def get_dst_info(dst_file_path):
@@ -83,6 +100,10 @@ def create_dst_with_tc(file_path, output_path):
     # Return the extracted color data for the response
     return tc_data
 
+# Function to encode the filename
+def encode_filename(file_name):
+    return urllib.parse.quote(file_name)
+
 # Route to handle DST file upload, process and create new file
 @app.route('/upload-dst', methods=['POST'])
 def upload_dst():
@@ -111,7 +132,7 @@ def upload_dst():
             } for color in tc_data]
 
             # Add the modified file and thread list to the response
-            dst_info["modified_file"] = f"https://dstupload.onrender.com/download/{file.filename}"
+            dst_info["modified_file"] = f"https://dstupload.onrender.com/download/{encode_filename(file.filename)}"
             dst_info["thread_list"] = thread_list
             dst_info["thread_color_header"] = "TC " + " ".join(tc_data)
 

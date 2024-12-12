@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
-from pyembroidery import read, write, EmbThread
-from pyembroidery.EmbConstant import HEADER_CONTROL
+from pyembroidery import *
 import os
 
 # Initialize Flask app
@@ -75,7 +74,7 @@ def create_dst_with_tc(file_path, output_path):
         catalog_number = thread.catalog_number if hasattr(thread, 'catalog_number') else "Unknown"
         tc_data.append(f"{color},{description},{catalog_number}")
 
-    pattern.extras[HEADER_CONTROL] = "TC " + " ".join(tc_data)
+    pattern.extras["THREAD_COLOR_HEADER"] = "TC " + " ".join(tc_data)
     write(pattern, output_path)
 
 # Route to handle DST file upload, process and create new file

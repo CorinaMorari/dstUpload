@@ -82,8 +82,8 @@ def create_dst_with_tc(file_path, output_path):
         catalog_number = thread.catalog_number if hasattr(thread, 'catalog_number') else "Unknown"
         tc_data.append(f"{color},{description},{catalog_number}")
 
-    # Set the TC header in the pattern's extras
-    pattern.extras["THREAD_COLOR_HEADER"] = "TC " + " ".join(tc_data)
+    # Set the TC header in the pattern's extras under the "TC" key
+    pattern.extras["TC"] = " ".join(tc_data)
 
     # Write the modified pattern to the output path
     write(pattern, output_path)
@@ -122,6 +122,9 @@ def upload_dst():
             dst_info["modified_file"] = f"https://dstupload.onrender.com/download/{file.filename}"
             dst_info["thread_list"] = thread_list
             dst_info["thread_color_header"] = "TC " + " ".join(tc_data)
+
+            # Include the TC header in the extras
+            dst_info["extras"]["TC"] = " ".join(tc_data)
 
             return jsonify(dst_info)
 

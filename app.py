@@ -32,15 +32,12 @@ COLOR_PALETTE = [
 # Function to add random threads to a pattern if threadlist is empty
 def add_random_threads(pattern, co_value):
     if not pattern.threadlist:
-        for color in COLOR_PALETTE:
-            if len(pattern.threadlist) < co_value:
-                thread = EmbThread()
-                thread.set_color(color[0], color[1], color[2])
-                thread.description = color[3]
-                thread.catalog_number = color[4]
-                pattern.add_thread(thread)
-            else:
-                break
+        for color in COLOR_PALETTE[:co_value]:  # Use the number of colors specified by CO
+            thread = EmbThread()
+            thread.set_color(color[0], color[1], color[2])
+            thread.description = color[3]
+            thread.catalog_number = color[4]
+            pattern.add_thread(thread)
 
 # Function to read DST file and extract detailed information
 def get_dst_info(dst_file_path):
@@ -49,6 +46,7 @@ def get_dst_info(dst_file_path):
 
     # Extract the CO (number of colors) value from the extras
     co_value = pattern.extras.get("CO", len(pattern.threadlist))  # Default to the length of threadlist if CO is not present
+    co_value = int(co_value)  # Ensure CO is treated as an integer
 
     # Add random threads if threadlist is empty
     add_random_threads(pattern, co_value)
@@ -71,6 +69,7 @@ def create_dst_with_tc(file_path, output_path):
 
     # Extract the CO (number of colors) value from the extras
     co_value = pattern.extras.get("CO", len(pattern.threadlist))  # Default to the length of threadlist if CO is not present
+    co_value = int(co_value)  # Ensure CO is treated as an integer
 
     # Add random threads if threadlist is empty
     add_random_threads(pattern, co_value)

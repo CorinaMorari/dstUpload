@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from pyembroidery import *
 import os
-import urllib.parse
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -31,38 +30,28 @@ COLOR_PALETTE = [
 ]
 
 # Function to add random threads to a pattern if threadlist is empty
-def add_random_threads(pattern, expected_thread_count=15):
-    # Ensure there are at least 15 threads in the pattern
+def add_random_threads(pattern, co_value):
     if not pattern.threadlist:
         for color in COLOR_PALETTE:
-            thread = EmbThread()
-            thread.set_color(color[0], color[1], color[2])
-            thread.description = color[3]
-            thread.catalog_number = color[4]
-            pattern.add_thread(thread)
-
-    # If there are fewer than expected threads, add placeholder threads
-    current_thread_count = len(pattern.threadlist)
-    if current_thread_count < expected_thread_count:
-        for _ in range(expected_thread_count - current_thread_count):
-            thread = EmbThread()
-            thread.set_color(0, 0, 0)  # Adding black or placeholder color
-            thread.description = "Empty"
-            thread.catalog_number = "0000"
-            pattern.add_thread(thread)
-
-# Function to trim thread list to match the number of colors in the DST
-def trim_thread_list_to_dsts_colors(pattern, color_count):
-    if len(pattern.threadlist) > color_count:
-        pattern.threadlist = pattern.threadlist[:color_count]
+            if len(pattern.threadlist) < co_value:
+                thread = EmbThread()
+                thread.set_color(color[0], color[1], color[2])
+                thread.description = color[3]
+                thread.catalog_number = color[4]
+                pattern.add_thread(thread)
+            else:
+                break
 
 # Function to read DST file and extract detailed information
 def get_dst_info(dst_file_path):
     # Read the DST file
     pattern = read(dst_file_path)
 
+    # Extract the CO (number of colors) value from the extras
+    co_value = pattern.extras.get("CO", len(pattern.threadlist))  # Default to the length of threadlist if CO is not present
+
     # Add random threads if threadlist is empty
-    add_random_threads(pattern)
+    add_random_threads(pattern, co_value)
 
     # Extract basic information
     stitches = len(pattern.stitches)
@@ -80,12 +69,15 @@ def get_dst_info(dst_file_path):
 def create_dst_with_tc(file_path, output_path):
     pattern = read(file_path)
 
+    # Extract the CO (number of colors) value from the extras
+    co_value = pattern.extras.get("CO", len(pattern.threadlist))  # Default to the length of threadlist if CO is not present
+
     # Add random threads if threadlist is empty
-    add_random_threads(pattern)
+    add_random_threads(pattern, co_value)
 
     # Generate TC header with thread color information
     tc_data = []
-    for thread in pattern.threadlist:
+    for thread in pattern.threadlist[:co_value]:  # Limit to the number of colors specified by CO
         color = f"#{thread.get_red():02X}{thread.get_green():02X}{thread.get_blue():02X}"
         description = thread.description if hasattr(thread, 'description') else "Unknown"
         catalog_number = thread.catalog_number if hasattr(thread, 'catalog_number') else "Unknown"
@@ -99,10 +91,6 @@ def create_dst_with_tc(file_path, output_path):
 
     # Return the extracted color data for the response
     return tc_data
-
-# Function to encode the filename
-def encode_filename(file_name):
-    return urllib.parse.quote(file_name)
 
 # Route to handle DST file upload, process and create new file
 @app.route('/upload-dst', methods=['POST'])
@@ -132,7 +120,7 @@ def upload_dst():
             } for color in tc_data]
 
             # Add the modified file and thread list to the response
-            dst_info["modified_file"] = f"https://dstupload.onrender.com/download/{encode_filename(file.filename)}"
+            dst_info["modified_file"] = f"https://dstupload.onrender.com/download/{file.filename}"
             dst_info["thread_list"] = thread_list
             dst_info["thread_color_header"] = "TC " + " ".join(tc_data)
 

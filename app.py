@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from pyembroidery import *
 import os
 
@@ -74,8 +74,14 @@ def create_dst_with_tc(file_path, output_path):
         catalog_number = thread.catalog_number if hasattr(thread, 'catalog_number') else "Unknown"
         tc_data.append(f"{color},{description},{catalog_number}")
 
+    # Set the TC header in the pattern's extras
     pattern.extras["THREAD_COLOR_HEADER"] = "TC " + " ".join(tc_data)
+    
+    # Write the modified pattern to the output path
     write(pattern, output_path)
+
+    # Return the extracted color data for the response
+    return tc_data
 
 # Route to handle DST file upload, process and create new file
 @app.route('/upload-dst', methods=['POST'])
@@ -93,20 +99,21 @@ def upload_dst():
             # Get information about the DST file
             dst_info = get_dst_info(file_path)
 
-            # Create new DST file with "TC" header
+            # Create new DST file with "TC" header and get the color data
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], f"modified_{file.filename}")
-            create_dst_with_tc(file_path, output_path)
+            tc_data = create_dst_with_tc(file_path, output_path)
 
             # Prepare the thread list to return in the response
             thread_list = [{
-                "color": f"#{thread.get_red():02X}{thread.get_green():02X}{thread.get_blue():02X}",
-                "description": thread.description,
-                "catalog_number": thread.catalog_number
-            } for thread in read(output_path).threadlist]
+                "color": color.split(",")[0],
+                "description": color.split(",")[1],
+                "catalog_number": color.split(",")[2]
+            } for color in tc_data]
 
             # Add the modified file and thread list to the response
             dst_info["modified_file"] = f"https://dstupload.onrender.com/download/{file.filename}"
             dst_info["thread_list"] = thread_list
+            dst_info["thread_color_header"] = "TC " + " ".join(tc_data)
 
             return jsonify(dst_info)
 
@@ -118,8 +125,7 @@ def upload_dst():
 # Route to handle file download
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
-    # Send the modified file for download
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
     app.run(debug=True)

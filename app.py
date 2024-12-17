@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from pyembroidery import read
+from pyembroidery import read, NEEDLE_SET
 import os
 
 # Initialize Flask app
@@ -10,20 +10,45 @@ UPLOAD_FOLDER = './uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Function to read DST file and extract basic information
+# Function to read DST file and extract detailed information
 def get_dst_info(dst_file_path):
     # Read the DST file
     pattern = read(dst_file_path)
 
-    # Extract basic information
-    stitches = len(pattern.stitches)
+    # Initialize stitch details and needle changes
+    stitch_details = []
+    needle_changes = []
+
+    current_needle = None
+
+    # Iterate over stitches and check for needle changes
+    for stitch in pattern.stitches:
+        stitch_data = {
+            "position": (stitch.x, stitch.y),
+            "command": stitch.command,
+            "needle": stitch.needle,
+        }
+
+        # Capture needle change events
+        if stitch.command == NEEDLE_SET and stitch.needle != current_needle:
+            needle_changes.append({
+                "needle": stitch.needle,
+                "position": (stitch.x, stitch.y),
+            })
+            current_needle = stitch.needle
+        
+        stitch_details.append(stitch_data)
+
+    # Extract basic thread information
     thread_count = len(pattern.threadlist)
     thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
 
     return {
-        "stitches": stitches,
+        "stitches": len(stitch_details),
         "thread_count": thread_count,
-        "thread_colors": thread_colors
+        "thread_colors": thread_colors,
+        "stitch_details": stitch_details,
+        "needle_changes": needle_changes
     }
 
 # Route to handle DST file upload and return information

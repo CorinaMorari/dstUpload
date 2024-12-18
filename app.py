@@ -31,8 +31,9 @@ def set_needles_for_dst(dst_file_path):
     # Read the DST file
     pattern = read(dst_file_path)
 
-    # Initialize a counter for different needles
+    # Initialize a counter for different needles and a set to store needles used
     needle_counter = 1
+    used_needles = set()  # To track unique needles used
     last_thread = None
 
     # Iterate through the stitches and handle needle change
@@ -47,6 +48,7 @@ def set_needles_for_dst(dst_file_path):
             if current_thread != last_thread:
                 # Set the new needle
                 pattern.add_command(encode_thread_change(SET_CHANGE_SEQUENCE, needle_counter))
+                used_needles.add(needle_counter)  # Add the needle to the used set
                 needle_counter += 1  # Increment needle for each thread change
                 last_thread = current_thread
 
@@ -54,7 +56,7 @@ def set_needles_for_dst(dst_file_path):
     updated_dst_file_path = dst_file_path.replace(".dst", "_updated.dst")
     write_dst(pattern, updated_dst_file_path)
 
-    return updated_dst_file_path
+    return updated_dst_file_path, sorted(list(used_needles))
 
 # Route to handle DST file upload and return information
 @app.route('/upload-dst', methods=['POST'])
@@ -72,12 +74,16 @@ def upload_dst():
             # Get information about the DST file
             dst_info = get_dst_info(file_path)
 
-            # Set needles for the DST file
-            updated_file_path = set_needles_for_dst(file_path)
+            # Set needles for the DST file and get the updated file path
+            updated_file_path, used_needles = set_needles_for_dst(file_path)
+
+            # Generate the downloadable URL for the updated file
+            download_url = f"https://dstupload.onrender.com/{updated_file_path}"
 
             return jsonify({
                 "dst_info": dst_info,
-                "updated_file_path": updated_file_path
+                "used_needles": used_needles,  # Return the needles used
+                "download_url": download_url  # Provide the download URL for the updated file
             })
         except Exception as e:
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500

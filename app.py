@@ -39,9 +39,11 @@ def set_needles_for_dst(dst_file_path):
     # Iterate through the pattern's stitches and commands
     for stitch in pattern.stitches:
         x, y, command = stitch
+        print(f"Stitch: {stitch}")  # Print out the full stitch to inspect its structure
 
         # Check for color change command (usually identified by a specific command value)
         if command == 3:  # Color change command (check your DST specification)
+            print(f"Color change detected at needle {needle_counter}")  # Log color change detection
             # Add a thread change command (set needle)
             pattern.add_command(encode_thread_change(SET_CHANGE_SEQUENCE, needle_counter))
             used_needles.add(needle_counter)  # Add the new needle to the used set

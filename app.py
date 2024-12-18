@@ -36,26 +36,16 @@ def set_needles_for_dst(dst_file_path):
     used_needles = set()  # To track unique needles used
     last_thread = None
 
-    # Iterate through the stitches and handle needle change
-    for stitch in pattern.stitches:
-        command = stitch[0]  # Command type
-
-        # Debugging: print the stitch command to verify structure
-        print(f"Stitch: {stitch}")
-
-        if command == 3:  # Thread change command (needle_set)
-            # Get the current thread (usually the 4th value in the stitch command)
-            current_thread = stitch[3] if len(stitch) > 3 else None
-
-            # Debugging: print the current thread
-            print(f"Thread Change Detected: {current_thread}")
-
-            if current_thread != last_thread:
-                # Set the new needle
-                pattern.add_command(encode_thread_change(SET_CHANGE_SEQUENCE, needle_counter))
-                used_needles.add(needle_counter)  # Add the needle to the used set
-                needle_counter += 1  # Increment needle for each thread change
-                last_thread = current_thread
+    # Iterate through the pattern's stitches and commands
+    for command in pattern.commands:
+        if isinstance(command, ColorChange):
+            # On color change, we assign a new needle
+            pattern.add_command(encode_thread_change(SET_CHANGE_SEQUENCE, needle_counter))
+            used_needles.add(needle_counter)  # Add the new needle to the used set
+            needle_counter += 1  # Increment for next needle
+        elif isinstance(command, Trim):
+            # Trim command, handle if necessary (no needle change here)
+            pass
 
     # Write the updated pattern to a new DST file
     updated_dst_file_path = dst_file_path.replace(".dst", "_updated.dst")

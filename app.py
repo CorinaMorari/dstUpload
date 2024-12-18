@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from pyembroidery import read
+from pyembroidery import EmbPattern, write_dst, encode_thread_change, SET_CHANGE_SEQUENCE
 import os
 
 # Initialize Flask app
@@ -10,6 +10,7 @@ UPLOAD_FOLDER = './uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Function to read DST file and extract basic information
 def get_dst_info(dst_file_path):
     # Read the DST file
     pattern = read(dst_file_path)
@@ -19,40 +20,41 @@ def get_dst_info(dst_file_path):
     thread_count = len(pattern.threadlist)
     thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
 
-    # Extract detailed stitch data
-    stitch_data = []
-    current_needle = 1
-    needle_sequence = []  # Keep track of needle usage order
-
-    for stitch in pattern.stitches:
-        command = stitch[0]  # Command type (e.g., JUMP, TRIM, THREAD_CHANGE, NORMAL)
-        x = stitch[1]        # X-coordinate
-        y = stitch[2]        # Y-coordinate
-
-        # Add stitch data
-        stitch_data.append({
-            "command": command,
-            "x": x,
-            "y": y,
-            "needle": current_needle
-        })
-
-        # Track needle changes for thread change commands (command 3 in DST files)
-        if command == 3:  
-            needle_sequence.append(current_needle)
-            current_needle += 1
-
-    # Ensure at least one needle is counted if no explicit thread change commands are present
-    if not needle_sequence:
-        needle_sequence = [1]
-
     return {
         "stitches": stitches,
         "thread_count": thread_count,
-        "thread_colors": thread_colors,
-        "stitch_data": stitch_data,
-        "needle_sequence": needle_sequence
+        "thread_colors": thread_colors
     }
+
+# Function to set needles for the DST file based on color changes
+def set_needles_for_dst(dst_file_path):
+    # Read the DST file
+    pattern = read(dst_file_path)
+
+    # Initialize a counter for different needles
+    needle_counter = 1
+    last_thread = None
+
+    # Iterate through the stitches and handle needle change
+    for stitch in pattern.stitches:
+        command = stitch[0]
+        
+        # Check for thread change command (needle_set)
+        if command == 3:  # Thread change command (needle_set)
+            # Get the current thread (usually the 4th value in the stitch command)
+            current_thread = stitch[3] if len(stitch) > 3 else None
+
+            if current_thread != last_thread:
+                # Set the new needle
+                pattern.add_command(encode_thread_change(SET_CHANGE_SEQUENCE, needle_counter))
+                needle_counter += 1  # Increment needle for each thread change
+                last_thread = current_thread
+
+    # Write the updated pattern to a new DST file
+    updated_dst_file_path = dst_file_path.replace(".dst", "_updated.dst")
+    write_dst(pattern, updated_dst_file_path)
+
+    return updated_dst_file_path
 
 # Route to handle DST file upload and return information
 @app.route('/upload-dst', methods=['POST'])
@@ -70,7 +72,13 @@ def upload_dst():
             # Get information about the DST file
             dst_info = get_dst_info(file_path)
 
-            return jsonify(dst_info)
+            # Set needles for the DST file
+            updated_file_path = set_needles_for_dst(file_path)
+
+            return jsonify({
+                "dst_info": dst_info,
+                "updated_file_path": updated_file_path
+            })
         except Exception as e:
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
     else:

@@ -38,12 +38,17 @@ def set_needles_for_dst(dst_file_path):
 
     # Iterate through the stitches and handle needle change
     for stitch in pattern.stitches:
-        command = stitch[0]
-        
-        # Check for thread change command (needle_set)
+        command = stitch[0]  # Command type
+
+        # Debugging: print the stitch command to verify structure
+        print(f"Stitch: {stitch}")
+
         if command == 3:  # Thread change command (needle_set)
             # Get the current thread (usually the 4th value in the stitch command)
             current_thread = stitch[3] if len(stitch) > 3 else None
+
+            # Debugging: print the current thread
+            print(f"Thread Change Detected: {current_thread}")
 
             if current_thread != last_thread:
                 # Set the new needle

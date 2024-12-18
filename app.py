@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from pyembroidery import read, NEEDLE_SET, END
+from pyembroidery import read, write, EmbPattern, COLOR_BREAK, SEQUENCE_BREAK
 import os
 
 # Initialize Flask app
@@ -10,57 +10,48 @@ UPLOAD_FOLDER = './uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Function to read DST file and extract basic information
-def get_dst_info(dst_file_path):
-    # Read the DST file
-    pattern = read(dst_file_path)
+# Function to create a DST pattern with commands and stitches
+def create_dst_pattern_with_commands():
+    pattern = EmbPattern()
 
-    # Extract basic information
-    stitches = len(pattern.stitches)
-    thread_count = len(pattern.threadlist)
-    thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
+    # Adding COLOR_BREAK command and stitches
+    pattern.add_command(COLOR_BREAK)
+    print("Added COLOR_BREAK")
+    pattern.add_stitch_relative(10, 0)  # Example stitch
+    pattern.add_stitch_relative(0, 10)
 
-    # Analyze match commands
-    needle_set_count = 0
-    end_command_count = 0
+    # Adding SEQUENCE_BREAK command and stitches
+    pattern.add_command(SEQUENCE_BREAK)
+    print("Added SEQUENCE_BREAK")
+    pattern.add_stitch_relative(-10, 0)
+    pattern.add_stitch_relative(0, -10)
 
-    for command in pattern.get_match_commands(NEEDLE_SET):
-        needle_set_count += 1
-        print(f"NEEDLE_SET command at stitch {command}")
+    # Adding another COLOR_BREAK command and stitches
+    pattern.add_command(COLOR_BREAK)
+    print("Added COLOR_BREAK")
+    pattern.add_stitch_relative(20, 20)
 
-    for command in pattern.get_match_commands(END):
-        end_command_count += 1
-        print(f"END command at stitch {command}")
+    # Adding another SEQUENCE_BREAK command and stitches
+    pattern.add_command(SEQUENCE_BREAK)
+    print("Added SEQUENCE_BREAK")
+    pattern.add_stitch_relative(-20, -20)
 
-    return {
-        "stitches": stitches,
-        "thread_count": thread_count,
-        "thread_colors": thread_colors,
-        "needle_set_count": needle_set_count,
-        "end_command_count": end_command_count
-    }
+    return pattern
 
-# Route to handle DST file upload and return information
-@app.route('/upload-dst', methods=['POST'])
-def upload_dst():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
+# Route to generate a DST pattern and save it
+@app.route('/generate-dst', methods=['POST'])
+def generate_dst():
+    try:
+        # Create a pattern with commands and stitches
+        pattern = create_dst_pattern_with_commands()
 
-    file = request.files['file']
+        # Save the DST file
+        output_file = os.path.join(app.config['UPLOAD_FOLDER'], "generated_pattern.dst")
+        write(pattern, output_file)
 
-    if file.filename.lower().endswith('.dst'):
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-        file.save(file_path)
-
-        try:
-            # Get information about the DST file
-            dst_info = get_dst_info(file_path)
-
-            return jsonify(dst_info)
-        except Exception as e:
-            return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
-    else:
-        return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
+        return jsonify({"message": "DST pattern generated successfully", "file_path": output_file})
+    except Exception as e:
+        return jsonify({"error": f"Failed to generate DST pattern: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -22,12 +22,13 @@ def get_dst_info(dst_file_path):
 
     # Initialize counters for specific commands
     needle_set_count = 0
+    needle_set_positions = []  # List to store positions of NEEDLE_SET commands
     end_command_count = 0
     color_change_count = 0
 
     # Create a list to store updated commands
     updated_stitches = []
-    
+
     # Process COLOR_CHANGE commands and add NEEDLE_SET after each
     for command in pattern.get_match_commands(COLOR_CHANGE):
         color_change_count += 1
@@ -39,6 +40,7 @@ def get_dst_info(dst_file_path):
         # Insert a NEEDLE_SET command after the COLOR_CHANGE only once
         updated_stitches.append((NEEDLE_SET, 0, 0))  # Insert default position (0, 0)
         needle_set_count += 1
+        needle_set_positions.append(len(updated_stitches) - 1)  # Store the position of the inserted NEEDLE_SET
 
     # Process the remaining commands (non-COLOR_CHANGE)
     for command in pattern.stitches:
@@ -47,6 +49,7 @@ def get_dst_info(dst_file_path):
         
             if command[0] == NEEDLE_SET:
                 needle_set_count += 1
+                needle_set_positions.append(len(updated_stitches) - 1)  # Store the position of the NEEDLE_SET
                 print(f"NEEDLE_SET command at stitch {command}")
                 
             elif command[0] == END:
@@ -57,17 +60,22 @@ def get_dst_info(dst_file_path):
     pattern.stitches = updated_stitches
 
     # Save the updated DST file for review (optional)
-    updated_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'updated_' + os.path.basename(dst_file_path))
+    updated_file_name = 'updated_' + os.path.basename(dst_file_path)
+    updated_file_path = os.path.join(app.config['UPLOAD_FOLDER'], updated_file_name)
     write(pattern, updated_file_path)
+
+    # Return the URL of the updated file on your domain
+    file_url = f"https://dstupload.onrender.com/uploads/{updated_file_name}"
 
     return {
         "stitches": stitches,
         "thread_count": thread_count,
         "thread_colors": thread_colors,
         "needle_set_count": needle_set_count,
+        "needle_set_positions": needle_set_positions,  # Positions of NEEDLE_SET commands
         "end_command_count": end_command_count,
         "color_change_count": color_change_count,
-        "updated_file_path": updated_file_path  # Path to updated file
+        "updated_file_url": file_url  # URL to access the updated file
     }
 
 # Route to handle DST file upload and return information

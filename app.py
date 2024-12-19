@@ -1,4 +1,5 @@
 import os
+
 from flask import Flask, request, jsonify
 from pyembroidery import read, NEEDLE_SET, END, COLOR_CHANGE
 
@@ -19,29 +20,25 @@ def get_dst_info(dst_file_path):
     # Extract basic information
     stitches = len(pattern.stitches)
     thread_list = pattern.threadlist
-    thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
+    thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in
+                     pattern.threadlist]
 
     # Analyze match commands
     needle_set_count = 0
     color_change_count = 0
-    last_color = None  # Track the last color used
+    color_change_commands = []
 
     for command in pattern.get_match_commands(COLOR_CHANGE):
         color_change_count += 1
-        current_color = pattern.get_color(command)  # Get the color at the COLOR_CHANGE command
+        color_change_command = command  # Store the current COLOR_CHANGE command
 
-        # If the color is different from the last color, we count it as a new needle set
-        if last_color != current_color:
-            print(f"COLOR_CHANGE command at stitch {command} with color {current_color}")
-            last_color = current_color  # Update the last color
-        else:
-            print(f"COLOR_CHANGE command at stitch {command} (no color change)")
+        # Add the color_change_command to the list
+        color_change_commands.append(color_change_command)
+        print(f"COLOR_CHANGE command at stitch {command}")
 
-    # After processing color changes, track NEEDLE_SET commands and associate with the color changes
     for command in pattern.get_match_commands(NEEDLE_SET):
-        if last_color is not None:
             needle_set_count += 1
-            print(f"NEEDLE_SET command at stitch {command} after color change (color {last_color})")
+            print(f"NEEDLE_SET command at stitch {command}")
 
     return {
         "stitches": stitches,

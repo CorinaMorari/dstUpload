@@ -27,17 +27,17 @@ def get_dst_info(dst_file_path):
     used_needles = []
     needle_number = 1  # Start with the first needle
 
-    # Inject NEEDLE_SET at the start and after every COLOR_CHANGE
     for stitch_index, command in enumerate(pattern.stitches):
         if stitch_index == 0:
             # Set the first needle at the start
             used_needles.append(needle_number)
             print(f"NEEDLE_SET: Needle {needle_number} set at the start (stitch {stitch_index})")
         elif command[0] == COLOR_CHANGE:
-            # Increment the needle number
-            needle_number += 1
-            used_needles.append(needle_number)
-            print(f"NEEDLE_SET: Needle {needle_number} set after COLOR_CHANGE at stitch {stitch_index}")
+            # Increment the needle number if it's within the thread count range
+            if needle_number < thread_count:
+                needle_number += 1
+                used_needles.append(needle_number)
+                print(f"NEEDLE_SET: Needle {needle_number} set after COLOR_CHANGE at stitch {stitch_index}")
 
     return {
         "stitches": stitches,

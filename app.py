@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from pyembroidery import read, NEEDLE_SET, END, COLOR_CHANGE
+from pyembroidery import read, write, NEEDLE_SET, END, COLOR_CHANGE
 import os
 
 # Initialize Flask app
@@ -10,7 +10,7 @@ UPLOAD_FOLDER = './uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Function to read DST file and extract basic information
+# Function to read DST file and extract basic information, and update with NEEDLE_SET
 def get_dst_info(dst_file_path):
     # Read the DST file
     pattern = read(dst_file_path)
@@ -20,30 +20,32 @@ def get_dst_info(dst_file_path):
     thread_count = len(pattern.threadlist)
     thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
 
-    # Analyze match commands
-    needle_set_count = 0
-    end_command_count = 0
+    # Analyze commands and insert NEEDLE_SET after each COLOR_CHANGE
+    updated_commands = []
     color_change_count = 0
 
-    for command in pattern.get_match_commands(NEEDLE_SET):
-        needle_set_count += 1
-        print(f"NEEDLE_SET command at stitch {command}")
+    for command in pattern.stitches:
+        updated_commands.append(command)
 
-    for command in pattern.get_match_commands(END):
-        end_command_count += 1
-        print(f"END command at stitch {command}")
+        # Check for COLOR_CHANGE and insert NEEDLE_SET
+        if command[0] == COLOR_CHANGE:
+            color_change_count += 1
+            # Insert a NEEDLE_SET command
+            updated_commands.append((NEEDLE_SET, 0, 0))  # Assuming default position (0, 0)
 
-    for command in pattern.get_match_commands(COLOR_CHANGE):
-        color_change_count += 1
-        print(f"COLOR_CHANGE command at stitch {command}")
+    # Replace the original commands with the updated ones
+    pattern.stitches = updated_commands
+
+    # Save the updated DST file for review (optional, for debugging)
+    updated_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'updated_' + os.path.basename(dst_file_path))
+    write(pattern, updated_file_path)
 
     return {
         "stitches": stitches,
         "thread_count": thread_count,
         "thread_colors": thread_colors,
-        "needle_set_count": needle_set_count,
-        "end_command_count": end_command_count,
-        "color_change_count": color_change_count
+        "color_change_count": color_change_count,
+        "updated_file_path": updated_file_path  # Path to updated file
     }
 
 # Route to handle DST file upload and return information

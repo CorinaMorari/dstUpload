@@ -37,16 +37,17 @@ def get_dst_info(dst_file_path):
         color_change_commands.append(color_change_command)
         print(f"COLOR_CHANGE command at stitch {command}")
 
-    for stitch in pattern.stitches:
 
-        if set_needle and stitch[2] == "NEEDLE_SET":  # Use 'and' instead of '&&'
-            set_needle = False  # Reset the set_needle flag
+    for stitch in pattern.stitches:
+        if stitch[2] == "NEEDLE":
             print(f"NEEDLE_SET command at stitch {stitch}")
             # Check if this stitch position is in any of the color change commands
         for color_change_command in color_change_commands:
             if stitch == color_change_command:
                 set_needle = True
                 print(f"Stitch {stitch} matches color change command at position {color_change_command}")
+
+
 
     for command in pattern.get_match_commands(NEEDLE_SET):
             needle_set_count += 1

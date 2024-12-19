@@ -18,32 +18,32 @@ def get_dst_info(dst_file_path):
     # Extract basic information
     stitches = len(pattern.stitches)
     thread_count = len(pattern.threadlist)
-    thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
+    thread_colors = [
+        {"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()}
+        for thread in pattern.threadlist
+    ]
 
     # Analyze match commands
-    needle_set_count = 0
-    end_command_count = 0
-    color_change_count = 0
+    used_needles = []
+    needle_number = 1  # Start with the first needle
 
-    for command in pattern.get_match_commands(NEEDLE_SET):
-        needle_set_count += 1
-        print(f"NEEDLE_SET command at stitch {command}")
-
-    for command in pattern.get_match_commands(END):
-        end_command_count += 1
-        print(f"END command at stitch {command}")
-
-    for command in pattern.get_match_commands(COLOR_CHANGE):
-        color_change_count += 1
-        print(f"COLOR_CHANGE command at stitch {command}")
+    # Inject NEEDLE_SET at the start and after every COLOR_CHANGE
+    for stitch_index, command in enumerate(pattern.stitches):
+        if stitch_index == 0:
+            # Set the first needle at the start
+            used_needles.append(needle_number)
+            print(f"NEEDLE_SET: Needle {needle_number} set at the start (stitch {stitch_index})")
+        elif command[0] == COLOR_CHANGE:
+            # Increment the needle number
+            needle_number += 1
+            used_needles.append(needle_number)
+            print(f"NEEDLE_SET: Needle {needle_number} set after COLOR_CHANGE at stitch {stitch_index}")
 
     return {
         "stitches": stitches,
         "thread_count": thread_count,
         "thread_colors": thread_colors,
-        "needle_set_count": needle_set_count,
-        "end_command_count": end_command_count,
-        "color_change_count": color_change_count
+        "needle_numbers": used_needles
     }
 
 # Route to handle DST file upload and return information

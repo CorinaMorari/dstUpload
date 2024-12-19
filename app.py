@@ -27,26 +27,31 @@ def get_dst_info(dst_file_path):
 
     # Create a list to store updated commands
     updated_stitches = []
-    
-    # Process commands
-    for command in pattern.stitches:
+
+    # Process COLOR_CHANGE commands and add NEEDLE_SET after each
+    for command in pattern.get_match_commands(COLOR_CHANGE):
+        color_change_count += 1
+        print(f"COLOR_CHANGE command at stitch {command}")
+
+        # Append the COLOR_CHANGE command
         updated_stitches.append(command)
+
+        # Insert a NEEDLE_SET command after the COLOR_CHANGE
+        updated_stitches.append((NEEDLE_SET, 0, 0))  # Insert default position (0, 0)
+        needle_set_count += 1
+
+    # Process the remaining commands (non-COLOR_CHANGE)
+    for command in pattern.stitches:
+        if command[0] != COLOR_CHANGE:  # Skip the already processed COLOR_CHANGE commands
+            updated_stitches.append(command)
         
-        if command[0] == COLOR_CHANGE:
-            color_change_count += 1
-            print(f"COLOR_CHANGE command at stitch {command}")
-
-            # Insert a NEEDLE_SET command after COLOR_CHANGE
-            updated_stitches.append((NEEDLE_SET, 0, 0))  # Insert default position (0, 0)
-            needle_set_count += 1
-
-        if command[0] == NEEDLE_SET:
-            needle_set_count += 1
-            print(f"NEEDLE_SET command at stitch {command}")
-            
-        elif command[0] == END:
-            end_command_count += 1
-            print(f"END command at stitch {command}")
+            if command[0] == NEEDLE_SET:
+                needle_set_count += 1
+                print(f"NEEDLE_SET command at stitch {command}")
+                
+            elif command[0] == END:
+                end_command_count += 1
+                print(f"END command at stitch {command}")
 
     # Replace the original stitches with the updated ones
     pattern.stitches = updated_stitches

@@ -1,6 +1,6 @@
-from flask import Flask, request, jsonify
-from pyembroidery import read, write, NEEDLE_SET, END, COLOR_CHANGE
 import os
+from flask import Flask, request, jsonify
+from pyembroidery import read, NEEDLE_SET, END, COLOR_CHANGE
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -10,6 +10,7 @@ UPLOAD_FOLDER = './uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+
 # Function to read DST file and extract basic information
 def get_dst_info(dst_file_path):
     # Read the DST file
@@ -17,66 +18,39 @@ def get_dst_info(dst_file_path):
 
     # Extract basic information
     stitches = len(pattern.stitches)
-    thread_count = len(pattern.threadlist)
+    thread_list = pattern.threadlist
     thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
 
-    # Initialize counters for specific commands
+    # Analyze match commands
     needle_set_count = 0
-    needle_set_positions = []  # List to store positions of NEEDLE_SET commands
-    end_command_count = 0
     color_change_count = 0
+    last_color = None  # Track the last color used
 
-    # Create a list to store updated commands
-    updated_stitches = []
-
-    # Process COLOR_CHANGE commands and add NEEDLE_SET after each
     for command in pattern.get_match_commands(COLOR_CHANGE):
         color_change_count += 1
-        print(f"COLOR_CHANGE command at stitch {command}")
+        current_color = pattern.get_color(command)  # Get the color at the COLOR_CHANGE command
 
-        # Append the COLOR_CHANGE command
-        updated_stitches.append(command)
+        # If the color is different from the last color, we count it as a new needle set
+        if last_color != current_color:
+            print(f"COLOR_CHANGE command at stitch {command} with color {current_color}")
+            last_color = current_color  # Update the last color
+        else:
+            print(f"COLOR_CHANGE command at stitch {command} (no color change)")
 
-        # Insert 1 NEEDLE_SET command after each COLOR_CHANGE command
-        updated_stitches.append((NEEDLE_SET, 0, 0))  # Insert a default NEEDLE_SET (0, 0)
-        needle_set_count += 1
-        needle_set_positions.append(len(updated_stitches) - 1)  # Store the position of the inserted NEEDLE_SET
-
-    # Process the remaining commands (non-COLOR_CHANGE)
-    for command in pattern.stitches:
-        if command[0] != COLOR_CHANGE:  # Skip the already processed COLOR_CHANGE commands
-            updated_stitches.append(command)
-        
-            if command[0] == NEEDLE_SET:
-                needle_set_count += 1
-                needle_set_positions.append(len(updated_stitches) - 1)  # Store the position of the NEEDLE_SET
-                print(f"NEEDLE_SET command at stitch {command}")
-                
-            elif command[0] == END:
-                end_command_count += 1
-                print(f"END command at stitch {command}")
-
-    # Replace the original stitches with the updated ones
-    pattern.stitches = updated_stitches
-
-    # Save the updated DST file for review
-    updated_file_name = 'updated_' + os.path.basename(dst_file_path)
-    updated_file_path = os.path.join(app.config['UPLOAD_FOLDER'], updated_file_name)
-    write(pattern, updated_file_path)
-
-    # Return the URL of the updated file on your domain
-    file_url = f"https://dstupload.onrender.com/uploads/{updated_file_name}"
+    # After processing color changes, track NEEDLE_SET commands and associate with the color changes
+    for command in pattern.get_match_commands(NEEDLE_SET):
+        if last_color is not None:
+            needle_set_count += 1
+            print(f"NEEDLE_SET command at stitch {command} after color change (color {last_color})")
 
     return {
         "stitches": stitches,
-        "thread_count": thread_count,
+        "thread_list": thread_list,
         "thread_colors": thread_colors,
         "needle_set_count": needle_set_count,
-        "needle_set_positions": needle_set_positions,  # Positions of NEEDLE_SET commands
-        "end_command_count": end_command_count,
-        "color_change_count": color_change_count,
-        "updated_file_url": file_url  # URL to access the updated file
+        "color_change_count": color_change_count
     }
+
 
 # Route to handle DST file upload and return information
 @app.route('/upload-dst', methods=['POST'])
@@ -99,6 +73,7 @@ def upload_dst():
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500
     else:
         return jsonify({"error": "Invalid file format. Please upload a .dst file."}), 400
+
 
 if __name__ == '__main__':
     app.run(debug=True)

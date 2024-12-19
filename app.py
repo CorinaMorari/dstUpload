@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from pyembroidery import read, write, NEEDLE_SET, END, COLOR_CHANGE
 import os
 
@@ -9,11 +9,6 @@ app = Flask(__name__)
 UPLOAD_FOLDER = './uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Serve files from the uploads folder
-@app.route('/uploads/<filename>')
-def upload_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # Function to read DST file and extract basic information
 def get_dst_info(dst_file_path):
@@ -42,12 +37,10 @@ def get_dst_info(dst_file_path):
         # Append the COLOR_CHANGE command
         updated_stitches.append(command)
 
-        # Insert a NEEDLE_SET command after each COLOR_CHANGE
-        # For each COLOR_CHANGE, we will insert multiple NEEDLE_SET commands
-        for _ in range(4):  # Modify this to insert 4 NEEDLE_SET commands, or dynamic based on the number of sections
-            updated_stitches.append((NEEDLE_SET, 0, 0))  # Insert default position (0, 0)
-            needle_set_count += 1
-            needle_set_positions.append(len(updated_stitches) - 1)  # Store the position of the inserted NEEDLE_SET
+        # Insert 1 NEEDLE_SET command after each COLOR_CHANGE command
+        updated_stitches.append((NEEDLE_SET, 0, 0))  # Insert a default NEEDLE_SET (0, 0)
+        needle_set_count += 1
+        needle_set_positions.append(len(updated_stitches) - 1)  # Store the position of the inserted NEEDLE_SET
 
     # Process the remaining commands (non-COLOR_CHANGE)
     for command in pattern.stitches:

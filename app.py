@@ -27,7 +27,7 @@ def get_dst_info(dst_file_path):
 
     # Create a list to store updated commands
     updated_stitches = []
-
+    
     # Process COLOR_CHANGE commands and add NEEDLE_SET after each
     for command in pattern.get_match_commands(COLOR_CHANGE):
         color_change_count += 1
@@ -36,7 +36,7 @@ def get_dst_info(dst_file_path):
         # Append the COLOR_CHANGE command
         updated_stitches.append(command)
 
-        # Insert a NEEDLE_SET command after the COLOR_CHANGE
+        # Insert a NEEDLE_SET command after the COLOR_CHANGE only once
         updated_stitches.append((NEEDLE_SET, 0, 0))  # Insert default position (0, 0)
         needle_set_count += 1
 

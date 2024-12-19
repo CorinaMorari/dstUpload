@@ -13,7 +13,6 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
 
-
 # Function to read DST file, extract info, set needles, and generate a new DST file
 def get_dst_info(dst_file_path):
     # Read the DST file
@@ -28,7 +27,7 @@ def get_dst_info(dst_file_path):
     # Analyze match commands
     needle_set_count = 0
     color_change_count = 0
-    needle_number = 0
+    needle_number = 1
     color_change_commands = []
     set_needle = False  # Flag to indicate if the next stitch should set the needle number
     needle_set_info = []  # To store the set needle numbers and their positions
@@ -91,10 +90,13 @@ def upload_dst():
             # Get information about the DST file and update the needles
             dst_info = get_dst_info(file_path)
 
+            # Construct the download link with the domain
+            download_link = f"https://dstupload.onrender.com/download/{os.path.basename(dst_info['new_dst_file'])}"
+
             # Return information and the link to download the updated DST file
             return jsonify({
                 "dst_info": dst_info,
-                "download_link": f"/download/{os.path.basename(dst_info['new_dst_file'])}"
+                "download_link": download_link
             })
         except Exception as e:
             return jsonify({"error": f"Failed to process DST file: {str(e)}"}), 500

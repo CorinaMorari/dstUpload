@@ -14,20 +14,18 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
 
 # Function to read DST file, extract info, set needles, and generate a new DST file
-def get_dst_info(dst_file_path):
+def get_dst_info(dst_file_path, needle_numbers):
     # Read the DST file
     pattern = read(dst_file_path)
 
     # Extract basic information
     stitches = len(pattern.stitches)
     thread_list = pattern.threadlist
-    thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in
-                     pattern.threadlist]
+    thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
 
     # Analyze match commands
     needle_set_count = 0
     color_change_count = 0
-    needle_number = 1
     color_change_commands = []
     set_needle = False  # Flag to indicate if the next stitch should set the needle number
     needle_set_info = []  # To store the set needle numbers and their positions
@@ -35,29 +33,28 @@ def get_dst_info(dst_file_path):
     for command in pattern.get_match_commands(COLOR_CHANGE):
         color_change_count += 1
         color_change_command = command  # Store the current COLOR_CHANGE command
-
-        # Add the color_change_command to the list
         color_change_commands.append(color_change_command)
         print(f"COLOR_CHANGE command at stitch {command}")
 
-    # Update needle set commands in the pattern
+    # Ensure there are enough needle numbers to assign
+    if len(needle_numbers) < color_change_count:
+        raise ValueError("The number of needle numbers provided is less than the number of color changes in the file.")
+
+    # Update needle set commands in the pattern based on color changes and specified needle numbers
+    needle_index = 0
     for inx, stitch in enumerate(pattern.stitches):
         if set_needle or inx == 0:
             set_needle = False
-            stitch[2] = EmbConstant.COLOR_CHANGE | needle_number  # Set the needle
-            needle_set_info.append({"needle_number": needle_number, "stitch_position": inx})
-            needle_number += 1  # Increment the needle number
+            # Assign the needle number from the list provided
+            stitch[2] = EmbConstant.COLOR_CHANGE | needle_numbers[needle_index]  # Set the needle from list
+            needle_set_info.append({"needle_number": needle_numbers[needle_index], "stitch_position": inx})
+            needle_index += 1  # Move to the next needle number
 
         # Check if the current stitch matches any color change command
         for color_change_command in color_change_commands:
             if stitch == color_change_command:
                 set_needle = True
                 print(f"Stitch {stitch} matches color change command at position {color_change_command}")
-
-    # Count the NEEDLE_SET commands
-    for command in pattern.get_match_commands(NEEDLE_SET):
-        needle_set_count += 1
-        print(f"NEEDLE_SET command at stitch {command}")
 
     # Save the modified pattern to a new DST file
     new_dst_file_path = os.path.join(app.config['DOWNLOAD_FOLDER'], 'updated_pattern.dst')
@@ -81,6 +78,18 @@ def upload_dst():
         return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files['file']
+    
+    # Get the needle numbers from the request data
+    needle_numbers = request.form.get('needle_numbers')
+    
+    # Parse the needle numbers into a list of integers
+    if needle_numbers:
+        try:
+            needle_numbers = list(map(int, needle_numbers.split(',')))  # Convert comma-separated string to list of ints
+        except ValueError:
+            return jsonify({"error": "Invalid needle numbers format. Ensure it's a comma-separated list of integers."}), 400
+    else:
+        return jsonify({"error": "No needle numbers provided."}), 400
 
     if file.filename.lower().endswith('.dst'):
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
@@ -88,7 +97,7 @@ def upload_dst():
 
         try:
             # Get information about the DST file and update the needles
-            dst_info = get_dst_info(file_path)
+            dst_info = get_dst_info(file_path, needle_numbers)
 
             # Construct the download link with the domain
             download_link = f"https://dstupload.onrender.com/download/{os.path.basename(dst_info['new_dst_file'])}"

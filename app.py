@@ -24,39 +24,18 @@ def get_dst_info(dst_file_path, needle_numbers):
     thread_list = pattern.threadlist
     thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in pattern.threadlist]
 
-    # Analyze match commands
-    needle_set_count = 0
-    color_change_count = 0
-    color_change_commands = []
-    needle_number = 0
-    needle_set_info = []  # To store the set needle numbers and their positions
-
-    # Collect all color change commands
-    for command in pattern.get_match_commands(COLOR_CHANGE):
-        color_change_count += 1
-        color_change_commands.append(command)
-        print(f"COLOR_CHANGE command at stitch {command}")
-
     # Ensure there are enough needle numbers to assign
-    if len(needle_numbers) < color_change_count:
+    color_change_commands = list(pattern.get_match_commands(COLOR_CHANGE))
+    if len(needle_numbers) < len(color_change_commands):
         raise ValueError("The number of needle numbers provided is less than the number of color changes in the file.")
 
-    # Update needle set commands in the pattern based on color changes and specified needle numbers
-    needle_index = 0
-    for inx, stitch in enumerate(pattern.stitches):
-        # Set the needle for the first stitch (stitch 0)
-        if inx == 0:
-            stitch[2] = EmbConstant.COLOR_CHANGE | needle_numbers[needle_index]  # Set the needle
-            needle_set_info.append({"needle_number": needle_numbers[needle_index], "stitch_position": inx})
-            needle_index += 1  # Move to the next needle number
-            print(f"Set needle {needle_numbers[needle_index-1]} at stitch {inx} for color change (stitch 0)")
+    # Set needles for each color change
+    needle_set_info = []
+    for index, command in enumerate(color_change_commands):
+        needle_number = needle_numbers[index]
+        pattern.stitches[command] = (0, 0, EmbConstant.COLOR_CHANGE | needle_number)
 
-        # Assign needle number at each color change point
-        if stitch in color_change_commands:
-            stitch[2] = EmbConstant.COLOR_CHANGE | needle_numbers[needle_index]  # Set the needle from the list
-            needle_set_info.append({"needle_number": needle_numbers[needle_index], "stitch_position": inx})
-            needle_index += 1  # Move to the next needle number
-            print(f"Set needle {needle_numbers[needle_index-1]} at stitch {inx} for color change")
+        needle_set_info.append({"needle_number": needle_number, "stitch_position": command})
 
     # Save the modified pattern to a new DST file
     new_dst_file_path = os.path.join(app.config['DOWNLOAD_FOLDER'], 'updated_pattern.dst')
@@ -66,8 +45,7 @@ def get_dst_info(dst_file_path, needle_numbers):
         "stitches": stitches,
         "thread_list": thread_list,
         "thread_colors": thread_colors,
-        "needle_set_count": needle_set_count,
-        "color_change_count": color_change_count,
+        "color_change_count": len(color_change_commands),
         "needle_set_info": needle_set_info,
         "new_dst_file": new_dst_file_path
     }

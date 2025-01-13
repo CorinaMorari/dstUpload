@@ -26,20 +26,27 @@ def get_dst_info(dst_file_path, needle_numbers):
 
     # Ensure there are enough needle numbers to assign
     color_change_commands = list(pattern.get_match_commands(COLOR_CHANGE))
-    if len(needle_numbers) < len(color_change_commands):
+    if len(needle_numbers) < len(color_change_commands) + 1:
         raise ValueError("The number of needle numbers provided is less than the number of color changes in the file.")
 
-    # Set needles for each color change
-    needle_set_info = []
-    needle_index = 0
+    # Set the first needle on stitch 0
+    first_needle_number = needle_numbers[0]
+    x, y, _ = pattern.stitches[0]
+    pattern.stitches[0] = (x, y, EmbConstant.COLOR_CHANGE | first_needle_number)
 
+    needle_set_info = [{"needle_number": first_needle_number, "stitch_position": 0}]
+    needle_index = 1  # Start from the second needle
+
+    # Set needles for each color change
     for command in color_change_commands:
-        # `command` is a tuple like (x, y, command_type), get its index in pattern.stitches
         stitch_index = pattern.stitches.index(command)
         needle_number = needle_numbers[needle_index]
 
-        # Update the stitch with the color change command and needle number
-        pattern.stitches[stitch_index] = (0, 0, EmbConstant.COLOR_CHANGE | needle_number)
+        # Get the original stitch (x, y, command)
+        x, y, _ = pattern.stitches[stitch_index]
+
+        # Update the stitch with the original coordinates and the new needle number
+        pattern.stitches[stitch_index] = (x, y, EmbConstant.COLOR_CHANGE | needle_number)
 
         # Record the needle set info
         needle_set_info.append({"needle_number": needle_number, "stitch_position": stitch_index})

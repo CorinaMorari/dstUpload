@@ -31,11 +31,19 @@ def get_dst_info(dst_file_path, needle_numbers):
 
     # Set needles for each color change
     needle_set_info = []
-    for index, command in enumerate(color_change_commands):
-        needle_number = needle_numbers[index]
-        pattern.stitches[command] = (0, 0, EmbConstant.COLOR_CHANGE | needle_number)
+    needle_index = 0
 
-        needle_set_info.append({"needle_number": needle_number, "stitch_position": command})
+    for command in color_change_commands:
+        # `command` is a tuple like (x, y, command_type), get its index in pattern.stitches
+        stitch_index = pattern.stitches.index(command)
+        needle_number = needle_numbers[needle_index]
+
+        # Update the stitch with the color change command and needle number
+        pattern.stitches[stitch_index] = (0, 0, EmbConstant.COLOR_CHANGE | needle_number)
+
+        # Record the needle set info
+        needle_set_info.append({"needle_number": needle_number, "stitch_position": stitch_index})
+        needle_index += 1
 
     # Save the modified pattern to a new DST file
     new_dst_file_path = os.path.join(app.config['DOWNLOAD_FOLDER'], 'updated_pattern.dst')

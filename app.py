@@ -25,34 +25,27 @@ def get_dst_info(dst_file_path, new_needle_numbers):
 
     # Detect color change commands and extract initial needles
     color_change_indices = [i for i, stitch in enumerate(pattern.stitches) if stitch[2] & EmbConstant.COLOR_CHANGE]
-
-    initial_needles = []
-    for color_change_index in color_change_indices:
-        _, _, command = pattern.stitches[color_change_index]
-        initial_needle = (command >> 8) & 0x0F  # Extract the needle number from the upper nibble
-        initial_needles.append(initial_needle)
+    initial_needles = [pattern.stitches[i][2] & 0x0F for i in color_change_indices]
 
     # Ensure sufficient new needle numbers are provided
-    if len(new_needle_numbers) < len(initial_needles):
-        raise ValueError(f"Insufficient new needle numbers. Expected {len(initial_needles)}, got {len(new_needle_numbers)}.")
+    if len(new_needle_numbers) < len(set(initial_needles)):
+        raise ValueError(f"Insufficient new needle numbers. Expected {len(set(initial_needles))}, got {len(new_needle_numbers)}.")
+
+    # Create a mapping from initial needle numbers to new needle numbers
+    needle_mapping = {initial: new for initial, new in zip(initial_needles, new_needle_numbers)}
 
     # Replace needles with new ones
     needle_set_info = []
-    for index, color_change_index in enumerate(color_change_indices):
+    for color_change_index in color_change_indices:
         x, y, command = pattern.stitches[color_change_index]
-
-        # Extract existing command flags and update the needle number
-        existing_flags = command & ~0x0F
-        new_command = existing_flags | (new_needle_numbers[index] & 0x0F)
-
-        # Update the stitch
+        original_needle = command & 0x0F
+        new_needle = needle_mapping.get(original_needle, original_needle)
+        new_command = (command & ~0x0F) | (new_needle & 0x0F)
         pattern.stitches[color_change_index] = (x, y, new_command)
-
-        # Log the replacement
         needle_set_info.append({
             "stitch_position": color_change_index,
-            "original_needle": initial_needles[index],
-            "new_needle": new_needle_numbers[index]
+            "original_needle": original_needle,
+            "new_needle": new_needle
         })
 
     # Save the updated DST file
@@ -68,7 +61,6 @@ def get_dst_info(dst_file_path, new_needle_numbers):
         "needle_set_info": needle_set_info,
         "new_dst_file": new_dst_file_path
     }
-
 
 # Route to handle DST file upload and return information
 @app.route('/upload-dst', methods=['POST'])

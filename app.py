@@ -27,14 +27,16 @@ def get_dst_info(dst_file_path, new_needle_numbers):
     color_change_indices = [
         i for i, stitch in enumerate(pattern.stitches) if stitch[2] & EmbConstant.COLOR_CHANGE
     ]
+    print(f"{color_change_indices}")
     initial_needles = []
     for color_change_index in color_change_indices:
         _, _, command = pattern.stitches[color_change_index]
         initial_needle = command & 0x0F  # Extract the needle number (lower nibble)
         initial_needles.append(initial_needle)
+        print(f"{initial_needles}")
 
     # Ensure sufficient new needle numbers are provided
-    if len(new_needle_numbers) < len(color_change_indices):
+    if len(new_needle_numbers) < len(initial_needles):
         raise ValueError("Insufficient new needle numbers for the number of color changes in the file.")
 
     # Replace needles with new ones

@@ -14,44 +14,44 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
 
 
-def get_dst_info(dst_file_path, needle_numbers):
-    # Читаем файл DST
+def get_dst_info(dst_file_path, new_needle_numbers):
+    # Read the DST file
     pattern = read(dst_file_path)
 
-    # Извлекаем информацию о стежках и цветах
+    # Extract stitches and threads
     stitches = len(pattern.stitches)
     thread_list = pattern.threadlist
     thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in thread_list]
 
-    # Извлекаем команды изменения цвета
+    # Detect color change commands and extract initial needles
     color_change_indices = [
         i for i, stitch in enumerate(pattern.stitches) if stitch[2] & EmbConstant.COLOR_CHANGE
     ]
-    print(f"Color changes detected: {color_change_indices}")  # Add this
+    initial_needles = []
+    for color_change_index in color_change_indices:
+        _, _, command = pattern.stitches[color_change_index]
+        initial_needle = command & 0x0F  # Extract the needle number (lower nibble)
+        initial_needles.append(initial_needle)
 
-    # Проверяем, что достаточно номеров игл
-    if len(needle_numbers) < len(color_change_indices) + 1:
-        raise ValueError("Количество номеров игл меньше количества изменений цвета в файле.")
+    # Ensure sufficient new needle numbers are provided
+    if len(new_needle_numbers) < len(color_change_indices):
+        raise ValueError("Insufficient new needle numbers for the number of color changes in the file.")
 
+    # Replace needles with new ones
     needle_set_info = []
-
-    # Применяем первый номер иглы к начальной позиции (если нужно)
-    first_needle_number = needle_numbers[0]
-    if color_change_indices and color_change_indices[0] != 0:
-        x, y, command = pattern.stitches[0]
-        pattern.stitches[0] = (x, y, EmbConstant.COLOR_CHANGE | first_needle_number)
-        needle_set_info.append({"needle_number": first_needle_number, "stitch_position": 0})
-
-    # Назначаем иглы для всех изменений цвета
     for index, color_change_index in enumerate(color_change_indices):
-        needle_number = needle_numbers[index + 1]  # Следующий номер иглы
         x, y, command = pattern.stitches[color_change_index]
-        pattern.stitches[color_change_index] = (x, y, EmbConstant.COLOR_CHANGE | needle_number)
+        new_needle_number = new_needle_numbers[index]
+        pattern.stitches[color_change_index] = (x, y, EmbConstant.COLOR_CHANGE | new_needle_number)
 
-        # Добавляем информацию о назначении иглы
-        needle_set_info.append({"needle_number": needle_number, "stitch_position": color_change_index})
+        # Log the replacement
+        needle_set_info.append({
+            "stitch_position": color_change_index,
+            "original_needle": initial_needles[index],
+            "new_needle": new_needle_number
+        })
 
-    # Сохраняем обновленный файл DST
+    # Save the updated DST file
     new_dst_file_path = os.path.join(app.config['DOWNLOAD_FOLDER'], 'updated_pattern.dst')
     write(pattern, new_dst_file_path)
 
@@ -60,6 +60,7 @@ def get_dst_info(dst_file_path, needle_numbers):
         "thread_list": thread_list,
         "thread_colors": thread_colors,
         "color_change_count": len(color_change_indices),
+        "initial_needles": initial_needles,
         "needle_set_info": needle_set_info,
         "new_dst_file": new_dst_file_path
     }

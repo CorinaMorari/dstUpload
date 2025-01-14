@@ -27,12 +27,15 @@ def get_dst_info(dst_file_path, new_needle_numbers):
     color_change_indices = [i for i, stitch in enumerate(pattern.stitches) if stitch[2] & EmbConstant.COLOR_CHANGE]
     initial_needles = [pattern.stitches[i][2] & 0x0F for i in color_change_indices]
 
-    # Ensure sufficient new needle numbers are provided
-    if len(new_needle_numbers) < len(set(initial_needles)):
-        raise ValueError(f"Insufficient new needle numbers. Expected {len(set(initial_needles))}, got {len(new_needle_numbers)}.")
+    # Get unique initial needles
+    unique_initial_needles = list(sorted(set(initial_needles)))
 
-    # Create a mapping from initial needle numbers to new needle numbers
-    needle_mapping = {initial: new for initial, new in zip(initial_needles, new_needle_numbers)}
+    # Ensure sufficient new needle numbers are provided
+    if len(new_needle_numbers) < len(unique_initial_needles):
+        raise ValueError(f"Insufficient new needle numbers. Expected {len(unique_initial_needles)}, got {len(new_needle_numbers)}.")
+
+    # Create a mapping from unique initial needle numbers to new needle numbers
+    needle_mapping = {initial: new for initial, new in zip(unique_initial_needles, new_needle_numbers)}
 
     # Replace needles with new ones
     needle_set_info = []
@@ -57,11 +60,11 @@ def get_dst_info(dst_file_path, new_needle_numbers):
         "thread_list": thread_list,
         "thread_colors": thread_colors,
         "color_change_count": len(color_change_indices),
-        "initial_needles": initial_needles,
+        "unique_initial_needles": unique_initial_needles,
         "needle_set_info": needle_set_info,
         "new_dst_file": new_dst_file_path
     }
-
+    
 # Route to handle DST file upload and return information
 @app.route('/upload-dst', methods=['POST'])
 def upload_dst():

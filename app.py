@@ -24,7 +24,10 @@ def get_dst_info(dst_file_path, new_needle_numbers):
     thread_colors = [{"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()} for thread in thread_list]
 
     # Detect color change commands and extract initial needles
-    color_change_indices = [i for i, stitch in enumerate(pattern.stitches) if stitch[2] & EmbConstant.COLOR_CHANGE]
+    color_change_indices = [
+        i for i, stitch in enumerate(pattern.stitches)
+        if stitch[2] == EmbConstant.COLOR_CHANGE
+    ]
     initial_needles = [pattern.stitches[i][2] & 0x0F for i in color_change_indices]
 
     # Get unique initial needles
@@ -64,6 +67,7 @@ def get_dst_info(dst_file_path, new_needle_numbers):
         "needle_set_info": needle_set_info,
         "new_dst_file": new_dst_file_path
     }
+
     
 # Route to handle DST file upload and return information
 @app.route('/upload-dst', methods=['POST'])

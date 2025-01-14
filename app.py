@@ -27,6 +27,7 @@ def get_dst_info(dst_file_path, needle_numbers):
     color_change_indices = [
         i for i, stitch in enumerate(pattern.stitches) if stitch[2] & EmbConstant.COLOR_CHANGE
     ]
+    print(f"Color changes detected: {color_change_indices}")  # Add this
 
     # Проверяем, что достаточно номеров игл
     if len(needle_numbers) < len(color_change_indices) + 1:

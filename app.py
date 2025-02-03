@@ -30,7 +30,6 @@ def convert_dst_to_tbf(dst_file_path):
 
     return tbf_file_path
 
-# Function to parse TBF file, set thread colors from palette, and generate PNG
 def parse_tbf(file_path, color_palette):
     pattern = read_tbf(file_path)
     stitches = []
@@ -50,6 +49,9 @@ def parse_tbf(file_path, color_palette):
             thread.set_rgb(rgb['r'], rgb['g'], rgb['b'])
             hex_colors.add(hex_color)
 
+    # Convert the set to a list for JSON response
+    hex_colors = list(hex_colors)
+
     # Generate the PNG file
     png_filename = os.path.splitext(os.path.basename(file_path))[0] + '.png'
     png_file_path = os.path.join(app.config['PNG_FOLDER'], png_filename)
@@ -58,7 +60,8 @@ def parse_tbf(file_path, color_palette):
     # URL for the PNG file
     png_url = f'{BASE_URL}/uploads/pngs/{urllib.parse.quote(png_filename)}'
 
-    return {"stitches": stitches, "hex_colors": list(hex_colors), "png_file_url": png_url}
+    return {"stitches": stitches, "used_colors_hex": hex_colors, "png_file_url": png_url}
+
 
 # Function to convert HEX to RGB
 def hex_to_rgb(hex_color):

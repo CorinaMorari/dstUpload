@@ -102,7 +102,7 @@ def upload_dst():
 
         return jsonify({
             "stitches": parsed_data["stitches"],
-            "used_colors_hex": parsed_data["hex_colors"],
+            "used_colors_hex": parsed_data["used_colors_hex"],  # Fixed the key to match parsed data
             "png_file_url": parsed_data["png_file_url"],
             "tbf_file_url": tbf_file_url  # Include TBF file URL in the response
         })

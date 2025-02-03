@@ -39,6 +39,11 @@ def parse_tbf(file_path, color_palette):
         x, y, command = stitch[0], stitch[1], stitch[2]
         stitches.append({"x": x, "y": y, "command": command})
 
+    # Debugging output to check threads before modification
+    print("Original thread colors:")
+    for thread in pattern.threadlist:
+        print(f"Thread color: {thread.get_rgb()}")
+
     # Replace threads from the provided color palette
     hex_colors = set()
     for i, thread in enumerate(pattern.threadlist):
@@ -48,6 +53,11 @@ def parse_tbf(file_path, color_palette):
             rgb = hex_to_rgb(hex_color)
             thread.set_rgb(rgb['r'], rgb['g'], rgb['b'])
             hex_colors.add(hex_color)
+
+    # Debugging output to check threads after modification
+    print("Modified thread colors:")
+    for thread in pattern.threadlist:
+        print(f"Thread color: {thread.get_rgb()}")
 
     # Convert the set to a list for JSON response
     hex_colors = list(hex_colors)
@@ -61,7 +71,6 @@ def parse_tbf(file_path, color_palette):
     png_url = f'{BASE_URL}/uploads/pngs/{urllib.parse.quote(png_filename)}'
 
     return {"stitches": stitches, "used_colors_hex": hex_colors, "png_file_url": png_url}
-
 
 # Function to convert HEX to RGB
 def hex_to_rgb(hex_color):

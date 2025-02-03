@@ -21,16 +21,6 @@ app.config['PNG_FOLDER'] = PNG_FOLDER
 # Base URL for serving files
 BASE_URL = 'https://dstupload.onrender.com'
 
-# Default threads (example RGB colors)
-DEFAULT_THREADS = [
-    EmbThread(0, 0, 0),  # Black
-    EmbThread(255, 255, 255),  # White
-    EmbThread(255, 0, 0),  # Red
-    EmbThread(0, 255, 0),  # Green
-    EmbThread(0, 0, 255),  # Blue
-]
-
-
 # Function to convert DST to PES
 def convert_dst_to_pes(dst_file_path):
     pattern = read(dst_file_path)
@@ -38,27 +28,46 @@ def convert_dst_to_pes(dst_file_path):
     write_pes(pattern, pes_file_path)
     return pes_file_path
 
+# Predefined embroidery thread palette
+PALETTE = [
+    {"name": "Emerald Black", "hex": "#000000"},
+    {"name": "Candy Apple Red", "hex": "#a51f37"},
+    {"name": "Regal Purple", "hex": "#5a2d8a"},
+    {"name": "Persian Blue", "hex": "#0f477a"},
+    {"name": "Blue Jay", "hex": "#3e87cb"},
+    {"name": "Celtic Green", "hex": "#008445"},
+    {"name": "Carmine", "hex": "#872b3a"},
+    {"name": "Night Sky", "hex": "#2e3748"},
+    {"name": "Gray Haze", "hex": "#aeb0af"},
+    {"name": "Polished Pewter", "hex": "#898d8d"},
+    {"name": "Super White", "hex": "#e4e9ed"},
+]
 
-# Function to parse PES file, set thread colors, and generate PNG
+# Function to map PES threads to the predefined palette
+def map_threads_to_palette(pattern):
+    mapped_threads = []
+    for i in range(len(pattern.threadlist)):
+        if i < len(PALETTE):
+            thread = pattern.threadlist[i]
+            palette_color = PALETTE[i]  # Assign thread from predefined palette
+            thread.set_hex_color(palette_color["hex"])  # Update thread color
+            mapped_threads.append({
+                "needle": i + 1,
+                "name": palette_color["name"],
+                "hex": palette_color["hex"]
+            })
+    return mapped_threads
+
+
+# Updated parse_pes function
 def parse_pes(file_path):
     pattern = read(file_path)
-    stitches = []
 
-    # Extract stitch information
-    for stitch in pattern.stitches:
-        x, y, command = stitch[0], stitch[1], stitch[2]
-        stitches.append({"x": x, "y": y, "command": command})
+    # Map threads to predefined palette
+    threads = map_threads_to_palette(pattern)
+    hex_colors = [t["hex"] for t in threads]  # Extract hex values
 
-    # Extract the threads used in the PES file
-    threads = []
-    hex_colors = set()
-
-    for thread in pattern.threadlist:
-        rgb = {"r": thread.get_red(), "g": thread.get_green(), "b": thread.get_blue()}
-        threads.append(rgb)
-        hex_colors.add(rgb_to_hex(rgb))  # Add HEX value to the set
-
-    # Generate the PNG file
+    # Generate the PNG file using updated colors
     png_filename = os.path.splitext(os.path.basename(file_path))[0] + '.png'
     png_file_path = os.path.join(app.config['PNG_FOLDER'], png_filename)
     write_png(pattern, png_file_path)
@@ -66,7 +75,12 @@ def parse_pes(file_path):
     # URL for the PNG file
     png_url = f'{BASE_URL}/uploads/{urllib.parse.quote(png_filename)}'
 
-    return {"stitches": stitches, "threads": threads, "hex_colors": list(hex_colors), "png_file_url": png_url}
+    return {
+        "threads": threads,
+        "hex_colors": hex_colors,
+        "png_file_url": png_url
+    }
+
 
 
 # Function to convert RGB to HEX format
